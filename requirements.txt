@@ -1,0 +1,6 @@
+wheel==0.33.6
+cos-python-sdk-v5==1.7.6
+tencentcloud-sdk-python==3.0.114
+Flask==1.1.1
+python-dotenv==0.10.3
+requests==2.22.0

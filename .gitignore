@@ -1,0 +1,7 @@
+/.env
+/src
+/gitcommit.txt
+/venv
+/status.json
+.Ulysses-*
+/public
