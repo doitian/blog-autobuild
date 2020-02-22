@@ -18,8 +18,7 @@ from pathlib import Path
 
 SRC_DIR = Path.home() / "codebase" / "my" / "ia-writer" / '§ Blog'
 CONTENT_DIR = Path.home() / "codebase" / "my" / "iany.me" / "content"
-TEST_VECTORS = Path.home() / "codebase" / "my" / \
-    "blog-autobuild" / "test-vectors"
+TEST_VECTORS = Path(os.path.realpath(__file__)).parent / "test-vectors"
 INFLECTOR = EnglishInflector()
 YYYYMM_RE = re.compile(r'\d{6} - (.*)')
 INLINE_MATH = re.compile(r'(^|[^\w$\\])(\$.*?[^\\]\$)(\W|$)')
@@ -400,10 +399,40 @@ if __name__ == '__main__':
     comm = sys.argv[1] if len(sys.argv) > 1 else 'test'
 
     if comm == 'run':
-        # o   $WATCHEXEC_COMMON_PATH,  the longest common path of all of the files that triggered a
-        #     change
-        src_dir = Path(os.environ.get('WATCHEXEC_COMMON_PATH', SRC_DIR)).resolve()
-        for root, dirs, files in os.walk(src_dir):
+        watch_changed_files = list(set(f for f in [
+            os.environ.get('WATCHEXEC_CREATED_PATH'),
+            os.environ.get('WATCHEXEC_RENAMED_PATH'),
+            os.environ.get('WATCHEXEC_WRITTEN_PATH'),
+            os.environ.get('WATCHEXEC_REMOVED_PATH'),
+            os.environ.get('WATCHEXEC_META_CHANGED_PATH')
+        ] if f))
+        watch_common_path = os.environ.get('WATCHEXEC_COMMON_PATH')
+
+        if len(watch_changed_files) or watch_common_path:
+            print("\n/***********************************")
+            if watch_common_path:
+                print("* {}/**".format(watch_common_path))
+            for f in watch_changed_files:
+                print("*   {}".format(f))
+            print(" **********************************/")
+
+        if len(watch_changed_files) > 0:
+            for changed_file in watch_changed_files:
+                if watch_common_path:
+                    if changed_file.startswith('/'):
+                        changed_file = Path(
+                            watch_common_path + changed_file).resolve()
+                    else:
+                        changed_file = (
+                            Path(watch_common_path) / changed_file).resolve()
+                else:
+                    changed_file = Path(changed_file).resolve()
+                if changed_file.exists() and changed_file.name.startswith('♯ '):
+                    publish(changed_file.parent, [changed_file.name], [], [])
+
+            exit(0)
+
+        for root, dirs, files in os.walk(SRC_DIR):
             root = Path(root)
             versions = []
             for file in files:
@@ -412,25 +441,6 @@ if __name__ == '__main__':
 
             if len(versions) > 0:
                 publish(root, versions, files, dirs)
-
-        # o   $WATCHEXEC_CREATED_PATH, the path of the file that was created
-        # o   $WATCHEXEC_REMOVED_PATH, the path of the file that was removed
-        # o   $WATCHEXEC_RENAMED_PATH, the path of the file that was renamed
-        # o   $WATCHEXEC_WRITTEN_PATH, the path of the file that was modified
-        # o   $WATCHEXEC_META_CHANGED_PATH, the path of the file whose metadata changed
-        changed_file = os.environ.get(
-            'WATCHEXEC_CREATED_PATH',
-            os.environ.get(
-                'WATCHEXEC_RENAMED_PATH',
-                os.environ.get(
-                    'WATCHEXEC_WRITTEN_PATH'
-                )
-            )
-        )
-        if changed_file:
-            changed_file = Path(changed_file).resolve()
-            if changed_file.name.startswith('♯ '):
-                publish(changed_file.parent, [changed_file.name], [], [])
 
         exit(0)
 
