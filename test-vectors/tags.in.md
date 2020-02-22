@@ -1,0 +1,8 @@
+---
+---
+
+# tags
+
+#foo #bar
+
+body
