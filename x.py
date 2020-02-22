@@ -22,6 +22,7 @@ TEST_VECTORS = Path(os.path.realpath(__file__)).parent / "test-vectors"
 INFLECTOR = EnglishInflector()
 YYYYMM_RE = re.compile(r'\d{6} - (.*)')
 INLINE_MATH = re.compile(r'(^|[^\w$\\])(\$.*?[^\\]\$)(\W|$)')
+EMBED_RE = re.compile(r'\[(\w+) - (.*)\]\((.*[^\s\'"])(?:\s+["\'](.*)["\'])?\)')
 
 CONTENT_BLOCK_IMAGE = re.compile(r'\s*(/(?:.+/)*.+\.(?:png|jpg))(\s.*|$)')
 CONTENT_BLOCK_MD = re.compile(r'\s*(/(?:.+/)*.+\.md)(\s.*|$)')
@@ -211,6 +212,11 @@ class StateNormal():
             io.append(line)
             return self
 
+        embed_match = EMBED_RE.match(line)
+        if embed_match:
+            convert_embed(line, embed_match, io)
+            return self
+
         if line.strip().startswith('```'):
             io.append(line)
             return StateFencedCodeBlock()
@@ -250,6 +256,10 @@ def slugify(name):
     return INFLECTOR.urlize(name.lower()).replace('_', '-')
 
 
+def line_end(line):
+    return line[len(line.rstrip()):]
+
+
 def parse_section(root):
     return INFLECTOR.urlize(INFLECTOR.singularize(root.parts[0]))
 
@@ -272,6 +282,19 @@ def strrepr(str):
     if str is None:
         return ''
     return json.dumps(str, ensure_ascii=False)
+
+
+def convert_embed(line, match, io):
+    args = match.group(4) or ''
+    if args != '':
+        args = ' ' + args
+    if match.group(1) == 'Vimeo':
+        id = match.group(3).split('vimeo.com/', 1)[-1]
+        io.append(
+            "{{{{< vimeo-card id={} caption={}{} >}}}}".format(strrepr(id), strrepr(match.group(2)), args))
+        io.append(line_end(line))
+    else:
+        io.append(line)
 
 
 def convert_link(match):
