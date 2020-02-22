@@ -309,15 +309,6 @@ def convert_md(src):
         fail("Invalid file content: {}".format(src))
 
     front_matters = load(content[1], Loader=Loader) or {}
-    if 'math' in front_matters:
-        fail("math: {}".format(src))
-    if 'mathjax' in front_matters:
-        fail("mathjax: {}".format(src))
-    if 'toc' in front_matters and front_matters['toc'] != False and front_matters['toc'] != True:
-        fail("toc: {}".format(src))
-    for k in ['isCJKLanguage', 'draft', 'hljs', 'hljsLanguages', 'redirect_from', 'layout']:
-        if k in front_matters:
-            fail("{}: {}".format(k, src))
 
     body = content[2].strip()
     if not body.startswith('# '):
@@ -362,7 +353,7 @@ def copy_tree(src, dst):
 
 
 def publish(root, versions, files, dirs):
-    print("publish {} in {}".format(", ".join(versions), root))
+    print("publish in {}".format(root))
     root_splits = str(root).split('/§ Blog/', 1)
     relative_root = Path(root_splits[1] if len(root_splits) > 1 else '')
     section = parse_section(relative_root)
@@ -382,9 +373,6 @@ def publish(root, versions, files, dirs):
             dst = post_dir / 'index.zh.md'
         else:
             dst = post_dir / 'index.md'
-
-        if not dst.exists():
-            fail("{} does not exist as {}".format(v, dst))
 
         save_file(content, dst)
 
