@@ -89,7 +89,7 @@ def _hugo(job):
     cwd = os.getcwd()
     try:
         os.chdir('src')
-        check_call('hugo')
+        check_call('hugo --minify'.split())
     finally:
         os.chdir(cwd)
 
