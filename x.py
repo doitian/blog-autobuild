@@ -20,7 +20,7 @@ SRC_DIR = Path.home() / "codebase" / "my" / "ia-writer" / '§ Blog'
 CONTENT_DIR = Path.home() / "codebase" / "my" / "iany.me" / "content"
 TEST_VECTORS = Path(os.path.realpath(__file__)).parent / "test-vectors"
 INFLECTOR = EnglishInflector()
-YYYYMM_RE = re.compile(r'\d{6} - (.*)')
+YYMM_RE = re.compile(r'\d{4} - (.*)')
 INLINE_MATH = re.compile(r'(^|[^\w$\\])(\$.*?[^\\]\$)(\W|$)')
 EMBED_RE = re.compile(r'\[(\w+) - (.*)\]\((.*[^\s\'"])(?:\s+["\'](.*)["\'])?\)')
 
@@ -266,7 +266,7 @@ def parse_section(root):
 
 def parse_basename(root):
     basename = root.name
-    match = YYYYMM_RE.match(basename)
+    match = YYMM_RE.match(basename)
     if match:
         return match.group(1)
     return basename
