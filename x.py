@@ -16,14 +16,17 @@ except ImportError:
 from inflector import English as EnglishInflector
 from pathlib import Path
 
-SRC_DIR = Path.home() / "codebase" / "my" / "ia-writer" / '§ Blog'
+INFLECTOR = EnglishInflector()
+
+SRC_DIR = Path.home() / "codebase" / "my" / "ia-writer"
 CONTENT_DIR = Path.home() / "codebase" / "my" / "iany.me" / "content"
 TEST_VECTORS = Path(os.path.realpath(__file__)).parent / "test-vectors"
-INFLECTOR = EnglishInflector()
+
+TICKLER_RE = re.compile(r'^tickler-')
 YYMM_RE = re.compile(r'\d{4} - (.*)')
 INLINE_MATH = re.compile(r'(^|[^\w$\\])(\$.*?[^\\]\$)(\W|$)')
-EMBED_RE = re.compile(r'\[(\w+) - (.*)\]\((.*[^\s\'"])(?:\s+["\'](.*)["\'])?\)')
-
+EMBED_RE = re.compile(
+    r'\[(\w+) - (.*)\]\((.*[^\s\'"])(?:\s+["\'](.*)["\'])?\)')
 CONTENT_BLOCK_IMAGE = re.compile(r'\s*(/(?:.+/)*.+\.(?:png|jpg))(\s.*|$)')
 CONTENT_BLOCK_MD = re.compile(r'\s*(/(?:.+/)*.+\.md)(\s.*|$)')
 CONTENT_BLOCK_CSV = re.compile(r'\s*(/(?:.+/)*.+\.csv)(\s.*|$)')
@@ -31,7 +34,8 @@ CONTENT_BLOCK_OTHER = re.compile(r'\s*(/(?:.+/)*.+\.[-_\w]+)(\s.*|$)')
 
 
 class MachineIO():
-    def __init__(self, inputs, outputs, pc):
+    def __init__(self, parent, inputs, outputs, pc):
+        self.parent = parent
         self.inputs = inputs
         self.outputs = outputs
         self.pc = pc
@@ -50,6 +54,13 @@ class MachineIO():
     def feed(self, lines):
         self.inputs = lines + self.inputs[self.pc:]
         self.pc = 0
+
+    def read_file(self, file):
+        with open(self.parent / file) as f:
+            return f.read()
+
+    def feed_file(self, file):
+        self.feed(self.read_file(file).splitlines(keepends=True))
 
     def flush(self):
         return "".join(self.outputs)
@@ -228,13 +239,19 @@ class StateNormal():
         if cb_image:
             return StateContentBlockImage([cb_image])
 
+        cb_md = CONTENT_BLOCK_MD.match(line)
+        if cb_md:
+            io.feed_file(cb_md.group(1)[1:])
+            return self
+
         io.append(convert_line(line, io.katex))
         return self
 
 
 class Converter():
-    def __init__(self, front_matters, body):
-        self.io = MachineIO(body.strip().splitlines(keepends=True), [], 0)
+    def __init__(self, parent, front_matters, body):
+        self.io = MachineIO(
+            parent, body.strip().splitlines(keepends=True), [], 0)
         if 'katex' in front_matters and front_matters['katex']:
             self.io.katex = True
         self.state = StateNormal()
@@ -272,6 +289,17 @@ def parse_basename(root):
     return basename
 
 
+def parse_subdir(section, root):
+    parent = root.relative_to(root.parts[0]).parent
+
+    if section == 'wiki':
+        return TICKLER_RE.sub('', slugify(str(parent)))
+    else:
+        parent = parent.relative_to(parent.parts[0])
+        if len(parent.parts) > 0:
+            return slugify(str(parent))
+
+
 # ia-writer://open?path=/Locations/iCloud/§%20Blog/Posts/Posts%202017/201710%20-%20Lua%20C%20Api%20Userdata/♯%20Lua%20C%20Api%20Userdata%20-%20Chinese.md
 IA_WRITER_LINK = re.compile(r'ia-writer://.*?\.md')
 RELATIVE_IMAGE = re.compile(
@@ -298,10 +326,27 @@ def convert_embed(line, match, io):
 
 
 def convert_link(match):
+    if '§%20Blog/' in match.group(0):
+        path = Path(urllib.parse.unquote(
+            match.group(0).split('§%20Blog/', 1)[1]))
+        section = parse_section(path)
+        slug = slugify(parse_basename(path.parent))
+        subdir = parse_subdir(section, path.parent)
+        if subdir:
+            slug = subdir + '/' + slug
+        lang = 'en'
+        if path.name.endswith('- Chinese.md'):
+            lang = 'zh'
+
+        return '{{{{< relref path="/{}/{}.md" lang="{}" >}}}}'.format(section, slug, lang)
+
     path = Path(urllib.parse.unquote(
-        match.group(0).split('§%20Blog/', 1)[1]))
-    section = parse_section(path)
+        match.group(0).split('§%20Tickler/', 1)[1]))
+    section = 'wiki'
     slug = slugify(parse_basename(path.parent))
+    subdir = parse_subdir(section, path.parent)
+    if subdir:
+        slug = subdir + '/' + slug
     lang = 'en'
     if path.name.endswith('- Chinese.md'):
         lang = 'zh'
@@ -327,25 +372,43 @@ def convert_line(line, katex):
 
 
 def convert_md(src):
-    content = open(src).read().split('---\n', 2)
-    if content[0] != '' and len(content) != 3:
-        fail("Invalid file content: {}".format(src))
+    with open(src) as f:
+        raw = f.read()
 
-    front_matters = load(content[1], Loader=Loader) or {}
+    if raw.startswith('---\n'):
+        content = open(src).read().split('---\n', 2)
+        if content[0] != '' and len(content) != 3:
+            fail("Invalid file content: {}".format(src))
 
-    body = content[2].strip()
+        front_matters = load(content[1], Loader=Loader) or {}
+
+        body = content[2].strip()
+    else:
+        front_matters = {}
+        body = raw
+
     if not body.startswith('# '):
         fail("{} does not have a title".format(src))
 
-    title_line, body = body.split('\n', 1)
-    body = body.strip()
+    body_splits = body.split('\n', 1)
+    if len(body_splits) > 1:
+        title_line, body = body.split('\n', 1)
+        body = body.strip()
+    else:
+        title_line = body_splits[0]
+        body = ''
 
     if 'title' not in front_matters:
         front_matters['title'] = title_line[2:].strip()
 
     if re.match(r'^#[a-zA-Z]', body):
-        tags_line, body = body.split('\n', 1)
-        body = body.strip()
+        tags_splits = body.split('\n', 1)
+        if len(tags_splits) > 1:
+            tags_line, body = tags_splits
+            body = body.strip()
+        else:
+            tags_line = tags_splits[0]
+            body = ''
         front_matters['tags'] = tags_line.strip()[1:].split(' #')
 
     parts = ['---']
@@ -353,7 +416,7 @@ def convert_md(src):
                       width=999, allow_unicode=True).strip())
     parts.append('---')
     parts.append('')
-    parts.append(Converter(front_matters, body).convert().rstrip())
+    parts.append(Converter(src.parent, front_matters, body).convert().rstrip())
     parts.append('')
 
     return "\n".join(parts)
@@ -375,35 +438,67 @@ def copy_tree(src, dst):
     shutil.copytree(src, dst)
 
 
+def should_publish(file):
+    dir = str(file.parent)
+    return file.exists() and file.name.startswith('♯ ') and ('§ Tickler' in dir or '§ Blog' in dir)
+
+
 def publish(root, versions, files, dirs):
     print("publish in {}".format(root))
-    root_splits = str(root).split('/§ Blog/', 1)
-    relative_root = Path(root_splits[1] if len(root_splits) > 1 else '')
-    section = parse_section(relative_root)
-    basename = parse_basename(relative_root)
+    if '§ Tickler' in str(root):
+        root_splits = str(root).split('/§ Tickler/', 1)
+        relative_root = Path(root_splits[1] if len(root_splits) > 1 else '')
+        section = 'wiki'
+        subdir = parse_subdir(section, relative_root)
+        basename = parse_basename(relative_root)
+    elif '§ Blog' in str(root):
+        root_splits = str(root).split('/§ Blog/', 1)
+        relative_root = Path(root_splits[1] if len(root_splits) > 1 else '')
+        section = parse_section(relative_root)
+        subdir = parse_subdir(section, relative_root)
+        basename = parse_basename(relative_root)
+    else:
+        fail("Unknown root: {}".format(root))
 
     for v in versions:
         if v[2:] != basename + '.md' and v[2:] != basename + ' - Chinese.md':
             fail('Invalid version file: {}'.format(root / v))
 
     slug = slugify(basename)
-    post_dir = CONTENT_DIR / section / slug
+    post_dir = CONTENT_DIR / section
+    if subdir:
+        post_dir = post_dir / subdir
+    post_dir = post_dir / slug
+
+    index_name = 'index'
+    conflict_index_name = '_index'
+    for d in dirs:
+        if (root / d / '♯ {}.md'.format(d)).exists():
+            index_name = '_index'
+            conflict_index_name = 'index'
 
     for v in versions:
         content = convert_md(root / v)
 
         if v.endswith('- Chinese.md'):
-            dst = post_dir / 'index.zh.md'
+            dst = post_dir / (index_name + '.zh.md')
+            conflict_dst = post_dir / (conflict_index_name + '.zh.md')
         else:
-            dst = post_dir / 'index.md'
+            dst = post_dir / (index_name + '.md')
+            conflict_dst = post_dir / (conflict_index_name + '.md')
 
+        print("save {}".format(dst))
         save_file(content, dst)
+        if conflict_dst.exists():
+            print("unlink {}".format(conflict_dst))
+            conflict_dst.unlink()
 
     for f in files:
-        if f not in versions:
+        if f not in versions and not f.endswith('.md'):
             copy_file(root / f, post_dir)
     for d in dirs:
-        copy_tree(root / d, post_dir)
+        if d in ['assets', 'images']:
+            copy_tree(root / d, post_dir)
 
 
 if __name__ == '__main__':
@@ -438,8 +533,10 @@ if __name__ == '__main__':
                             Path(watch_common_path) / changed_file).resolve()
                 else:
                     changed_file = Path(changed_file).resolve()
-                if changed_file.exists() and changed_file.name.startswith('♯ '):
-                    publish(changed_file.parent, [changed_file.name], [], [])
+                if should_publish(changed_file):
+                    dirs = [p.name for p in changed_file.parent.iterdir()
+                            if p.is_dir()]
+                    publish(changed_file.parent, [changed_file.name], [], dirs)
 
             exit(0)
 
@@ -447,7 +544,7 @@ if __name__ == '__main__':
             root = Path(root)
             versions = []
             for file in files:
-                if file.startswith('♯ '):
+                if should_publish(root / file):
                     versions.append(file)
 
             if len(versions) > 0:
