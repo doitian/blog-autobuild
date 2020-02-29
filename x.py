@@ -393,7 +393,7 @@ def convert_md(src):
             tags_line = tags_splits[0]
             body = ''
         front_matters['tags'] = tags_line.strip()[1:].split(' #')
-    
+
     if body == '':
         return None
 
@@ -471,28 +471,37 @@ def publish(root, versions, files, dirs):
             copy_tree(root / d, post_dir)
 
 
+def is_watch_exec():
+    for env in ['WATCHEXEC_CREATED_PATH', 'WATCHEXEC_RENAMED_PATH', 'WATCHEXEC_WRITTEN_PATH', 'WATCHEXEC_REMOVED_PATH', 'WATCHEXEC_META_CHANGED_PATH']:
+        if env in os.environ:
+            return True
+
+    return False
+
+def read_watch_exec_paths():
+    return set(
+        path
+        for env in ['WATCHEXEC_CREATED_PATH', 'WATCHEXEC_RENAMED_PATH', 'WATCHEXEC_WRITTEN_PATH']
+        for path in os.environ.get(env, '').split(':') if path != ''
+    )
+
+
 if __name__ == '__main__':
     comm = sys.argv[1] if len(sys.argv) > 1 else 'test'
 
     if comm == 'run':
-        watch_changed_files = list(set(f for f in [
-            os.environ.get('WATCHEXEC_CREATED_PATH'),
-            os.environ.get('WATCHEXEC_RENAMED_PATH'),
-            os.environ.get('WATCHEXEC_WRITTEN_PATH'),
-            os.environ.get('WATCHEXEC_REMOVED_PATH'),
-            os.environ.get('WATCHEXEC_META_CHANGED_PATH')
-        ] if f))
+        watch_changed_files = read_watch_exec_paths()
         watch_common_path = os.environ.get('WATCHEXEC_COMMON_PATH')
 
-        if len(watch_changed_files) or watch_common_path:
-            print("\n/***********************************")
-            if watch_common_path:
-                print("* {}/**".format(watch_common_path))
-            for f in watch_changed_files:
-                print("*   {}".format(f))
-            print(" **********************************/")
+        if is_watch_exec():
+            if len(watch_changed_files) > 0:
+                print("\n/***********************************")
+                if watch_common_path:
+                    print("* {}/**".format(watch_common_path))
+                for f in watch_changed_files:
+                    print("*   {}".format(f))
+                print(" **********************************/")
 
-        if len(watch_changed_files) > 0:
             for changed_file in watch_changed_files:
                 if watch_common_path:
                     if changed_file.startswith('/'):
@@ -503,10 +512,15 @@ if __name__ == '__main__':
                             Path(watch_common_path) / changed_file).resolve()
                 else:
                     changed_file = Path(changed_file).resolve()
+
+                dirs = [p.name for p in changed_file.parent.iterdir()
+                        if p.is_dir()]
                 if should_publish(changed_file):
-                    dirs = [p.name for p in changed_file.parent.iterdir()
-                            if p.is_dir()]
                     publish(changed_file.parent, [changed_file.name], [], dirs)
+                elif changed_file.name.endswith('.md'):
+                    for p in changed_file.parent.iterdir():
+                        if should_publish(p):
+                            publish(p.parent, [p.name], [], dirs)
 
             exit(0)
 
