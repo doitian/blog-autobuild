@@ -289,17 +289,6 @@ def parse_basename(root):
     return basename
 
 
-def parse_subdir(section, root):
-    parent = root.relative_to(root.parts[0]).parent
-
-    if section == 'wiki':
-        return TICKLER_RE.sub('', slugify(str(parent)))
-    else:
-        parent = parent.relative_to(parent.parts[0])
-        if len(parent.parts) > 0:
-            return slugify(str(parent))
-
-
 # ia-writer://open?path=/Locations/iCloud/§%20Blog/Posts/Posts%202017/201710%20-%20Lua%20C%20Api%20Userdata/♯%20Lua%20C%20Api%20Userdata%20-%20Chinese.md
 IA_WRITER_LINK = re.compile(r'ia-writer://.*?\.md')
 RELATIVE_IMAGE = re.compile(
@@ -331,9 +320,6 @@ def convert_link(match):
             match.group(0).split('§%20Blog/', 1)[1]))
         section = parse_section(path)
         slug = slugify(parse_basename(path.parent))
-        subdir = parse_subdir(section, path.parent)
-        if subdir:
-            slug = subdir + '/' + slug
         lang = 'en'
         if path.name.endswith('- Chinese.md'):
             lang = 'zh'
@@ -344,9 +330,6 @@ def convert_link(match):
         match.group(0).split('§%20Tickler/', 1)[1]))
     section = 'wiki'
     slug = slugify(parse_basename(path.parent))
-    subdir = parse_subdir(section, path.parent)
-    if subdir:
-        slug = subdir + '/' + slug
     lang = 'en'
     if path.name.endswith('- Chinese.md'):
         lang = 'zh'
@@ -410,6 +393,9 @@ def convert_md(src):
             tags_line = tags_splits[0]
             body = ''
         front_matters['tags'] = tags_line.strip()[1:].split(' #')
+    
+    if body == '':
+        return None
 
     parts = ['---']
     parts.append(dump(front_matters, Dumper=Dumper,
@@ -449,13 +435,11 @@ def publish(root, versions, files, dirs):
         root_splits = str(root).split('/§ Tickler/', 1)
         relative_root = Path(root_splits[1] if len(root_splits) > 1 else '')
         section = 'wiki'
-        subdir = parse_subdir(section, relative_root)
         basename = parse_basename(relative_root)
     elif '§ Blog' in str(root):
         root_splits = str(root).split('/§ Blog/', 1)
         relative_root = Path(root_splits[1] if len(root_splits) > 1 else '')
         section = parse_section(relative_root)
-        subdir = parse_subdir(section, relative_root)
         basename = parse_basename(relative_root)
     else:
         fail("Unknown root: {}".format(root))
@@ -465,33 +449,19 @@ def publish(root, versions, files, dirs):
             fail('Invalid version file: {}'.format(root / v))
 
     slug = slugify(basename)
-    post_dir = CONTENT_DIR / section
-    if subdir:
-        post_dir = post_dir / subdir
-    post_dir = post_dir / slug
-
-    index_name = 'index'
-    conflict_index_name = '_index'
-    for d in dirs:
-        if (root / d / '♯ {}.md'.format(d)).exists():
-            index_name = '_index'
-            conflict_index_name = 'index'
+    post_dir = CONTENT_DIR / section / slug
 
     for v in versions:
         content = convert_md(root / v)
+        if content is None:
+            continue
 
         if v.endswith('- Chinese.md'):
-            dst = post_dir / (index_name + '.zh.md')
-            conflict_dst = post_dir / (conflict_index_name + '.zh.md')
+            dst = post_dir / 'index.zh.md'
         else:
-            dst = post_dir / (index_name + '.md')
-            conflict_dst = post_dir / (conflict_index_name + '.md')
+            dst = post_dir / 'index.md'
 
-        print("save {}".format(dst))
         save_file(content, dst)
-        if conflict_dst.exists():
-            print("unlink {}".format(conflict_dst))
-            conflict_dst.unlink()
 
     for f in files:
         if f not in versions and not f.endswith('.md'):
