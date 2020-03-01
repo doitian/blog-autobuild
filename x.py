@@ -354,6 +354,28 @@ def convert_line(line, katex):
     return line
 
 
+def resolve_breadcrumbs(path, front_matters):
+    ext = ' - Chinese.md' if path.name.endswith(' - Chinese.md') else '.md'
+    if 'breadcrumbAncestors' not in front_matters:
+        ancestors = []
+        parent = path.parent.parent
+        while (parent / "♯ {}{}".format(parent.name, ext)).exists():
+            ancestors.append("../{}/".format(slugify(parent.name)))
+            parent = parent.parent
+        if len(ancestors) > 0:
+            ancestors.reverse()
+            front_matters['breadcrumbAncestors'] = ancestors
+
+    if 'breadcrumbDescendants' not in front_matters:
+        descendants = list(
+            "../{}/".format(slugify(d.name))
+            for d in path.parent.iterdir()
+            if d.is_dir() and (d / "♯ {}{}".format(d.name, ext)).exists()
+        )
+        if len(descendants) > 0:
+            front_matters['breadcrumbDescendants'] = descendants
+
+
 def convert_md(src):
     with open(src) as f:
         raw = f.read()
@@ -394,8 +416,11 @@ def convert_md(src):
             body = ''
         front_matters['tags'] = tags_line.strip()[1:].split(' #')
 
-    if body == '':
-        return None
+    resolve_breadcrumbs(src, front_matters)
+    descendants = []
+    if 'breadcrumbDescendants' in front_matters:
+        descendants = front_matters['breadcrumbDescendants']
+        del front_matters['breadcrumbDescendants']
 
     parts = ['---']
     parts.append(dump(front_matters, Dumper=Dumper,
@@ -404,6 +429,14 @@ def convert_md(src):
     parts.append('')
     parts.append(Converter(src.parent, front_matters, body).convert().rstrip())
     parts.append('')
+    if len(descendants) > 0:
+        if src.name.endswith(' - Chinese.md'):
+            parts.append('## 索引\n')
+        else:
+            parts.append('## Index\n')
+        for d in descendants:
+            parts.append('* {{{{< rellink path="{}" >}}}}'.format(d))
+        parts.append('')
 
     return "\n".join(parts)
 
@@ -477,6 +510,7 @@ def is_watch_exec():
             return True
 
     return False
+
 
 def read_watch_exec_paths():
     return set(
