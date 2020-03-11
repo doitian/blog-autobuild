@@ -497,7 +497,7 @@ def publish(root, versions, files, dirs):
         save_file(content, dst)
 
     for f in files:
-        if f not in versions and not f.endswith('.md'):
+        if Path(f).suffix in ['.jpg', '.png', '.gif']:
             copy_file(root / f, post_dir)
     for d in dirs:
         if d in ['assets', 'images']:
