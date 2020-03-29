@@ -380,6 +380,14 @@ def convert_md(src):
     with open(src) as f:
         raw = f.read()
 
+    printable_exceptions = "\n\r\t| "
+    for i in range(len(raw)):
+        c = raw[i]
+        if not c.isprintable() and not c in printable_exceptions:
+            context_start = i - 10 if i > 10 else 0
+            fail("File {} contains nonprintable char at {}: {}({})".format(
+                src, i, repr(c), repr(raw[context_start:context_start + 20])))
+
     if raw.startswith('---\n'):
         content = open(src).read().split('---\n', 2)
         if content[0] != '' and len(content) != 3:
