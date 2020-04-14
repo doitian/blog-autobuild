@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# pip install PyYAML Inflector
+
 import os
 import sys
 import re
