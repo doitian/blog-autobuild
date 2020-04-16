@@ -373,7 +373,7 @@ def resolve_breadcrumbs(path, front_matters):
     if 'breadcrumbDescendants' not in front_matters:
         descendants = list(
             "../{}/".format(slugify(d.name))
-            for d in path.parent.iterdir()
+            for d in sorted(path.parent.iterdir())
             if d.is_dir() and (d / "♯ {}{}".format(d.name, ext)).exists()
         )
         if len(descendants) > 0:
