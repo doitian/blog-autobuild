@@ -55,6 +55,16 @@ class MachineIO():
         self.outputs.append(line)
         return self
 
+    def squash_empty_lines(self):
+        empty_line_already_exist = (
+            len(self.outputs) == 0 or self.outputs[-1].rstrip("\r\n") == '')
+        while self.pc < len(self.inputs) and self.inputs[self.pc].rstrip("\r\n") == '':
+            if not empty_line_already_exist:
+                self.outputs.append(self.inputs[self.pc])
+                empty_line_already_exist = True
+
+            self.pc += 1
+
     def feed(self, lines):
         self.inputs = lines + self.inputs[self.pc:]
         self.pc = 0
@@ -225,6 +235,10 @@ class StateNormal():
 
         if line.strip() == '':
             io.append(line)
+            return self
+
+        if line.strip() == '{{TOC}}':
+            io.squash_empty_lines()
             return self
 
         embed_match = EMBED_RE.match(line)
@@ -433,6 +447,9 @@ def convert_md(src):
     if 'breadcrumbDescendants' in front_matters:
         descendants = front_matters['breadcrumbDescendants']
         del front_matters['breadcrumbDescendants']
+
+    if '{{TOC}}' in body:
+        front_matters['toc'] = True
 
     parts = ['---']
     parts.append(dump(front_matters, Dumper=Dumper,
