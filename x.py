@@ -31,7 +31,7 @@ YYMM_RE = re.compile(r'\d{4} - (.*)')
 INLINE_MATH = re.compile(r'(^|[^\w$\\])(\$.*?[^\\]\$)(\W|$)')
 EMBED_RE = re.compile(
     r'\[(\w+) - (.*)\]\((.*[^\s\'"])(?:\s+["\'](.*)["\'])?\)')
-CONTENT_BLOCK_IMAGE = re.compile(r'\s*(/(?:.+/)*.+\.(?:png|jpg))(\s.*|$)')
+CONTENT_BLOCK_IMAGE = re.compile(r'\s*(/(?:.+/)*.+\.(?:png|jpe?g))(\s.*|$)')
 CONTENT_BLOCK_MD = re.compile(r'\s*(/(?:.+/)*.+\.md)(\s.*|$)')
 CONTENT_BLOCK_CSV = re.compile(r'\s*(/(?:.+/)*.+\.csv)(\s.*|$)')
 CONTENT_BLOCK_OTHER = re.compile(r'\s*(/(?:.+/)*.+\.[-_\w]+)(\s.*|$)')
@@ -310,7 +310,7 @@ def parse_basename(root):
 # ia-writer://open?path=/Locations/iCloud/§%20Blog/Posts/Posts%202017/201710%20-%20Lua%20C%20Api%20Userdata/♯%20Lua%20C%20Api%20Userdata%20-%20Chinese.md
 IA_WRITER_LINK = re.compile(r'ia-writer://.*?\.md')
 RELATIVE_IMAGE = re.compile(
-    r'!\[(.*?)\]\(\./([^)]*\.(?:jpg|png))(?:\s+"(.*)")?\)')
+    r'!\[(.*?)\]\(\./([^)]*\.(?:jpe?g|png))(?:\s+"(.*)")?\)')
 
 
 def strrepr(str):
@@ -526,7 +526,7 @@ def publish(root, versions, files, dirs):
         save_file(content, dst)
 
     for f in files:
-        if Path(f).suffix in ['.jpg', '.png', '.gif']:
+        if Path(f).suffix in ['.jpg', '.jpeg', '.png', '.gif']:
             copy_file(root / f, post_dir)
     for d in dirs:
         if d in ['assets', 'images']:
