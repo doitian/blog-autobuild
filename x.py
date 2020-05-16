@@ -410,7 +410,7 @@ def convert_md(src):
         fail("File {} contains full domain link".format(src))
 
     if raw.startswith('---\n'):
-        content = open(src).read().split('---\n', 2)
+        content = raw.split('---\n', 2)
         if content[0] != '' and len(content) != 3:
             fail("Invalid file content: {}".format(src))
 
