@@ -406,7 +406,7 @@ def convert_md(src):
             fail("File {} contains nonprintable char at {}: {}({})".format(
                 src, i, repr(c), repr(raw[context_start:context_start + 20])))
 
-    if 'blog.iany.me/' in raw:
+    if 'blog.iany.me/' in raw.replace('blog.iany.me/uploads', ''):
         fail("File {} contains full domain link".format(src))
 
     if raw.startswith('---\n'):
