@@ -21,7 +21,7 @@ from pathlib import Path
 INFLECTOR = EnglishInflector()
 
 SRC_DIR = Path(os.environ.get('KB_SRC_DIR', Path.home() /
-                              "codebase" / "my" / "ia-writer"))
+                              "codebase" / "my" / "knowledge-base"))
 CONTENT_DIR = Path(os.environ.get(
     'KB_CONTENT_DIR', Path.home() / "codebase" / "my" / "iany.me" / "content"))
 TEST_VECTORS = Path(os.path.realpath(__file__)).parent / "test-vectors"
