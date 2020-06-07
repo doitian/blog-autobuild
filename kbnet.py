@@ -181,4 +181,8 @@ if __name__ == '__main__':
             }
         }
     }""")
-    kb.save('kbnet.html')
+    if os.path.exists('../iany.me'):
+        os.makedirs('../iany.me/static/wiki/net/')
+        kb.save('../iany.me/static/wiki/net/index.html')
+    else:
+        kb.save('kbnet.html')
