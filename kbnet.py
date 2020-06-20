@@ -121,12 +121,13 @@ class KnowledgeBase():
                                   title='<a href="{}">Open in iA Writer</a>'.format(entry.link), shape='ellipse', level=len(entry.ancestors) + 1, physics=True)
 
             for link in entry.cross_links:
-                self.pending_edges.append({
-                    'source': entry.link,
-                    'to': link,
-                    'width': 2,
-                    'color': 'green'
-                })
+                if '§ Tickler' in link:
+                    self.pending_edges.append({
+                        'source': entry.link,
+                        'to': link,
+                        'width': 2,
+                        'color': 'green'
+                    })
             for link in entry.ancestors:
                 self.pending_edges.append({
                     'source': link,
@@ -161,7 +162,7 @@ class KnowledgeBase():
 if __name__ == '__main__':
     kb = KnowledgeBase()
     SRC_DIR = Path(os.environ.get('KB_SRC_DIR', Path.home() /
-                                  "codebase" / "my" / "ia-writer" / "§ Tickler"))
+                                  "codebase" / "my" / "knowledge-base" / "§ Tickler"))
 
     for root, dirs, files in os.walk(SRC_DIR):
         root = Path(root)
@@ -182,7 +183,7 @@ if __name__ == '__main__':
         }
     }""")
     if os.path.exists('../iany.me'):
-        os.makedirs('../iany.me/static/wiki/net/')
+        os.makedirs('../iany.me/static/wiki/net/', exist_ok=True)
         kb.save('../iany.me/static/wiki/net/index.html')
     else:
         kb.save('kbnet.html')
