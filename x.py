@@ -352,7 +352,12 @@ def convert_link(match):
     if path.name.endswith('- Chinese.md'):
         lang = 'zh'
 
-    return '{{{{< relref path="/{}/{}.md" lang="{}" >}}}}'.format(section, slug, lang)
+    anchor = ''
+    if '♯' not in path.name:
+        anchor = '#' + slugify(path.name[0:-12] if path.name.endswith(
+            '- Chinese.md') else path.name[0:-3])
+
+    return '{{{{< relref path="/{}/{}.md" lang="{}" >}}}}{}'.format(section, slug, lang, anchor)
 
 
 def convert_relative_img(match):
