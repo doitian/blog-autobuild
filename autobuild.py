@@ -152,9 +152,16 @@ def _cdn(job):
 
     if len(job['files']) == 0:
         job['steps']['cdn'] = {'action': 'SKIPPED'}
-    elif len(job['files']) < 1000:
+    elif len(job['files']) < 500:
         req = PurgeUrlsCacheRequest()
-        req.Urls = ['http://blog.iany.me' + path for path in job['files']]
+
+        urls = []
+        for path in job['files']:
+            urls.append('http://blog.iany.me' + path)
+            if path.endswith('/index.html'):
+                urls.append('http://blog.iany.me' + path[0:-10])
+        req.Urls = urls
+
         if not dryrun:
             client.PurgeUrlsCache(req)
         job['steps']['cdn'] = {'action': 'PurgeUrlsCache'}
