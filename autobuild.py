@@ -159,10 +159,9 @@ def _cdn(job):
         for path in job['files']:
             urls.append('http://blog.iany.me' + path)
             if path.endswith('/index.html'):
-                if path == 'index.html':
+                urls.append('http://blog.iany.me' + path[0:-10])
+                if path == '/index.html':
                     urls.append('http://blog.iany.me')
-                else:
-                    urls.append('http://blog.iany.me' + path[0:-10])
         req.Urls = urls
 
         if not dryrun:
