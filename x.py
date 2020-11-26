@@ -21,20 +21,25 @@ from pathlib import Path
 INFLECTOR = EnglishInflector()
 
 SRC_DIR = Path(os.environ.get('KB_SRC_DIR', Path.home() /
-                              "Dropbox" / "Brain" / "_Publish"))
+                              "Dropbox" / "Brain" / "publish"))
 CONTENT_DIR = Path(os.environ.get(
     'KB_CONTENT_DIR', Path.home() / "codebase" / "my" / "iany.me" / "content"))
 TEST_VECTORS = Path(os.path.realpath(__file__)).parent / "test-vectors"
 
-TICKLER_RE = re.compile(r'^tickler-')
 YYMM_RE = re.compile(r'\d{4} - (.*)')
 INLINE_MATH = re.compile(r'(^|[^\w$\\])(\$.*?[^\\]\$)(\W|$)')
 EMBED_RE = re.compile(
     r'\[(\w+) - (.*)\]\((.*[^\s\'"])(?:\s+["\'](.*)["\'])?\)')
-CONTENT_BLOCK_IMAGE = re.compile(r'\s*(/(?:.+/)*.+\.(?:png|jpe?g))(\s.*|$)')
-CONTENT_BLOCK_MD = re.compile(r'\s*(/(?:.+/)*.+\.md)(\s.*|$)')
-CONTENT_BLOCK_CSV = re.compile(r'\s*(/(?:.+/)*.+\.csv)(\s.*|$)')
-CONTENT_BLOCK_OTHER = re.compile(r'\s*(/(?:.+/)*.+\.[-_\w]+)(\s.*|$)')
+CONTENT_BLOCK_RE = re.compile(r'\s*!\[\[(.*)\]\]$')
+
+IMAGE_EXTS = {
+    '.jpg': True,
+    '.jpeg': True,
+    '.png': True,
+    '.gif': True
+}
+
+ARTICLES_INDEX = {}
 
 
 class MachineIO():
@@ -90,40 +95,31 @@ class ContentBlock():
     end_row: bool
 
     def __init__(self, match):
-        self.path = match.group(1)
+        parts = match.group(1).split('|')
+        self.path = parts[0]
         self.caption = ''
         self.gallery_caption = ''
         self.query = ''
         self.end_row = False
         self.kg_width = ''
 
-        remaining = match.group(2).strip()
-        if remaining == '':
-            return
+        if self.path.startswith('./'):
+            self.path = self.path[2:]
 
-        if remaining.startswith('"'):
-            splits = remaining[1:].split('"', 1)
-            self.caption = splits[0].strip()
-            remaining = splits[1].strip()
-        elif remaining.startswith('('):
-            splits = remaining[1:].split(')', 1)
-            self.caption = splits[0].strip()
-            remaining = splits[1].strip()
+        if len(parts) > 1:
+            self.caption = parts[1]
 
-        if remaining == '|':
+        if len(parts) > 2:
+            self.query = parts[2]
+            query_splits = self.query.split('?', 1)
+            if query_splits[0].strip() in ['fit', 'normal', 'wide', 'full']:
+                self.kg_width = query_splits[0].strip()
+                self.query = query_splits[1].strip() if len(
+                    query_splits) > 1 else ''
+
+        if len(parts) > 3:
             self.end_row = True
-            return
-
-        splits = remaining.split('|', 1)
-        self.query = splits[0].strip()
-        query_splits = self.query.split('?', 1)
-        if query_splits[0].strip() in ['fit', 'normal', 'wide', 'full']:
-            self.kg_width = query_splits[0].strip()
-            self.query = query_splits[1].strip() if len(
-                query_splits) > 1 else ''
-        if len(splits) > 1:
-            self.end_row = True
-            self.gallery_caption = splits[1].strip()
+            self.gallery_caption = parts[3]
 
 
 class StateFencedCodeBlock():
@@ -144,16 +140,17 @@ class StateContentBlockImage():
         self.matches = matches
 
     def parse(self, line, io):
-        cb_image = CONTENT_BLOCK_IMAGE.match(
-            line) if line is not None else None
-        if cb_image:
-            self.matches.append(cb_image)
-            return self
+        cb_match = CONTENT_BLOCK_RE.match(line) if line is not None else None
+        if cb_match:
+            ext = os.path.splitext(cb_match.group(1).split('|')[0])[1]
+            if ext in IMAGE_EXTS:
+                self.matches.append(cb_match)
+                return self
 
         if len(self.matches) == 1:
             cb = ContentBlock(self.matches[0])
             io.append("{{< image-card")
-            src = cb.path[1:]
+            src = cb.path
             if cb.query != '':
                 src = src + '?' + cb.query
             io.append(' src=')
@@ -181,7 +178,7 @@ class StateContentBlockImage():
                 if cb.end_row:
                     should_start_new_line = True
 
-                src = cb.path[1:]
+                src = cb.path
                 if cb.query != '':
                     src = src + '?' + cb.query
                 if cb.caption != '':
@@ -253,14 +250,19 @@ class StateNormal():
         if io.katex and line.strip().startswith('\\\\['):
             return StateMathBlock().on_start(line, io)
 
-        cb_image = CONTENT_BLOCK_IMAGE.match(line)
-        if cb_image:
-            return StateContentBlockImage([cb_image])
-
-        cb_md = CONTENT_BLOCK_MD.match(line)
-        if cb_md:
-            io.feed_file(cb_md.group(1)[1:])
-            return self
+        cb_match = CONTENT_BLOCK_RE.match(line)
+        if cb_match:
+            ext = os.path.splitext(cb_match.group(1).split('|')[0])[1]
+            if ext in IMAGE_EXTS:
+                return StateContentBlockImage([cb_match])
+            else:
+                filename = cb_match.group(1).split('|')[0]
+                if filename.startswith('./'):
+                    filename = filename[2:]
+                if not filename.endswith('.md'):
+                    filename = filename + '.md'
+                io.feed_file(filename)
+                return self
 
         io.append(convert_line(line, io.katex))
         return self
@@ -299,6 +301,21 @@ def parse_section(root):
     return INFLECTOR.urlize(INFLECTOR.singularize(root.parts[0]))
 
 
+def find_article(basename):
+    if basename in ARTICLES_INDEX:
+        return ARTICLES_INDEX[basename]
+
+    # collect
+    for root, dirs, files in os.walk(SRC_DIR):
+        root = Path(root)
+        for file in files:
+            file_path = root / file
+            if should_publish(file_path):
+                ARTICLES_INDEX[os.path.splitext(file)[0]] = file_path
+
+    return ARTICLES_INDEX[basename]
+
+
 def parse_basename(root):
     basename = root.name
     match = YYMM_RE.match(basename)
@@ -308,7 +325,7 @@ def parse_basename(root):
 
 
 # ia-writer://open?path=/Locations/iCloud/§%20Blog/Posts/Posts%202017/201710%20-%20Lua%20C%20Api%20Userdata/♯%20Lua%20C%20Api%20Userdata%20-%20Chinese.md
-IA_WRITER_LINK = re.compile(r'ia-writer://.*?\.md')
+WIKILINK = re.compile(r'\[\[(♯ .*?)\]\]')
 RELATIVE_IMAGE = re.compile(
     r'!\[(.*?)\]\(\./([^)]*\.(?:jpe?g|png))(?:\s+"(.*)")?\)')
 
@@ -333,31 +350,34 @@ def convert_embed(line, match, io):
 
 
 def convert_link(match):
-    if '§%20Blog/' in match.group(0):
-        path = Path(urllib.parse.unquote(
-            match.group(0).split('§%20Blog/', 1)[1]))
+    basename = match.group(1)
+    title = basename
+    if '|' in basename:
+        basename, title = basename.split('|', 1)
+
+    lang = 'en'
+    if basename.endswith('- Chinese'):
+        lang = 'zh'
+
+    path = find_article(basename)
+
+    if '§ Blog' in path.parts:
+        path = Path(*path.parts[path.parts.index('§ Blog') + 1:])
         section = parse_section(path)
         slug = slugify(parse_basename(path.parent))
-        lang = 'en'
-        if path.name.endswith('- Chinese.md'):
-            lang = 'zh'
 
-        return '{{{{< relref path="/{}/{}.md" lang="{}" >}}}}'.format(section, slug, lang)
+        return '[{}]({{{{< relref path="/{}/{}.md" lang="{}" >}}}})'.format(title, section, slug, lang)
 
-    path = Path(urllib.parse.unquote(
-        match.group(0).split('§%20Tickler/', 1)[1]))
+    path = Path(*path.parts[path.parts.index('§ Tickler') + 1:])
     section = 'wiki'
     slug = slugify(parse_basename(path.parent))
-    lang = 'en'
-    if path.name.endswith('- Chinese.md'):
-        lang = 'zh'
 
     anchor = ''
     if '♯' not in path.name:
         anchor = '#' + slugify(path.name[0:-12] if path.name.endswith(
             '- Chinese.md') else path.name[0:-3])
 
-    return '{{{{< relref path="/{}/{}.md" lang="{}" >}}}}{}'.format(section, slug, lang, anchor)
+    return '[{}]({{{{< relref path="/{}/{}.md" lang="{}" >}}}}{})'.format(title, section, slug, lang, anchor)
 
 
 def convert_relative_img(match):
@@ -368,7 +388,7 @@ def convert_relative_img(match):
 
 
 def convert_line(line, katex):
-    line = IA_WRITER_LINK.sub(convert_link, line)
+    line = WIKILINK.sub(convert_link, line)
     line = RELATIVE_IMAGE.sub(convert_relative_img, line)
 
     if katex:
