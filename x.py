@@ -202,7 +202,7 @@ class StateContentBlockImage():
 
 class StateMathBlock():
     def on_start(self, line, io):
-        indentation, text = line.split('\\\\[')
+        indentation, text = line.split('$$', 1)
         self.indentation = indentation
         io.append(indentation)
         io.append('``` katex\n')
@@ -213,8 +213,8 @@ class StateMathBlock():
     def parse(self, line, io):
         if line is None:
             fail("Unexpected EOF: open math block")
-        if line.strip().endswith('\\\\]'):
-            io.append('\\]'.join(line.split('\\\\]')))
+        if line.strip().endswith('$$'):
+            io.append('\\]'.join(line.rsplit('$$', 1)))
             if not line.endswith('\n'):
                 io.append('\n')
             io.append(self.indentation)
@@ -247,7 +247,7 @@ class StateNormal():
             io.append(line)
             return StateFencedCodeBlock()
 
-        if io.katex and line.strip().startswith('\\\\['):
+        if io.katex and line.strip().startswith('$$'):
             return StateMathBlock().on_start(line, io)
 
         cb_match = CONTENT_BLOCK_RE.match(line)
