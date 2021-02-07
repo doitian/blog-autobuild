@@ -468,7 +468,7 @@ def convert_md(src):
         else:
             tags_line = tags_splits[0]
             body = ''
-        front_matters['tags'] = tags_line.strip()[1:].split(' #')
+        front_matters['tags'] = tags_line.strip()[1:].split(' [[', 1)[0].split(' #')
 
     resolve_breadcrumbs(src, front_matters)
     descendants = []
