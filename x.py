@@ -225,6 +225,18 @@ class StateMathBlock():
             return self
 
 
+class StateComment():
+    def on_start(self, line, io):
+        return self.parse(line, io)
+
+    def parse(self, line, io):
+        if line.strip()[2:].endswith('%%'):
+            io.squash_empty_lines()
+            return StateNormal()
+        else:
+            return self
+
+
 class StateNormal():
     def parse(self, line, io):
         if line is None:
@@ -234,7 +246,7 @@ class StateNormal():
             io.append(line)
             return self
 
-        if line.strip() == '{{TOC}}':
+        if line.strip() == '%%TOC%%':
             io.squash_empty_lines()
             return self
 
@@ -249,6 +261,9 @@ class StateNormal():
 
         if io.katex and line.strip().startswith('$$'):
             return StateMathBlock().on_start(line, io)
+
+        if line.strip().startswith('%%'):
+            return StateComment().on_start(line, io)
 
         cb_match = CONTENT_BLOCK_RE.match(line)
         if cb_match:
@@ -468,7 +483,8 @@ def convert_md(src):
         else:
             tags_line = tags_splits[0]
             body = ''
-        front_matters['tags'] = tags_line.strip()[1:].split(' [[', 1)[0].split(' #')
+        front_matters['tags'] = tags_line.strip()[1:].split(' [[', 1)[
+            0].split(' #')
 
     resolve_breadcrumbs(src, front_matters)
     descendants = []
@@ -476,7 +492,7 @@ def convert_md(src):
         descendants = front_matters['breadcrumbDescendants']
         del front_matters['breadcrumbDescendants']
 
-    if '{{TOC}}' in body:
+    if '%%TOC%%' in body:
         front_matters['toc'] = True
 
     parts = ['---']
