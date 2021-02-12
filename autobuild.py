@@ -208,10 +208,10 @@ def _build(job_id):
 
     if 'IFTTT_TOKEN' in os.environ:
         try:
-            url = 'https://maker.ifttt.com/trigger/blog_posted/with/key/' + \
+            url = 'https://maker.ifttt.com/trigger/message/with/key/' + \
                 os.environ['IFTTT_TOKEN']
             payload = {
-                'value1': '{status} {duration}s: {git_message}'.format(**job)}
+                'value1': 'Blog {status} {duration}s: {git_message}'.format(**job)}
             if not dryrun:
                 requests.post(url,
                               data=json.dumps(payload),
