@@ -31,6 +31,7 @@ INLINE_MATH = re.compile(r'(^|[^\w$\\])(\$.*?[^\\]\$)(\W|$)')
 EMBED_RE = re.compile(
     r'\[(\w+) - (.*)\]\((.*[^\s\'"])(?:\s+["\'](.*)["\'])?\)')
 CONTENT_BLOCK_RE = re.compile(r'\s*!\[\[(.*)\]\]$')
+ANCHOR_RE = re.compile(r'\^[a-zA-Z0-9]+$')
 
 IMAGE_EXTS = {
     '.jpg': True,
@@ -250,6 +251,11 @@ class StateNormal():
             io.squash_empty_lines()
             return self
 
+        if ANCHOR_RE.match(line.strip()):
+            indentation, name = line.split('^', maxsplit=1)
+            io.append('{}<a name="{}"></a>\n'.format(indentation, name.strip()))
+            return self
+
         embed_match = EMBED_RE.match(line)
         if embed_match:
             convert_embed(line, embed_match, io)
@@ -367,30 +373,34 @@ def convert_embed(line, match, io):
 def convert_link(match):
     basename = match.group(1)
     title = basename
+
     if '|' in basename:
         basename, title = basename.split('|', 1)
+
+    anchor = ''
+    if '#^' in basename:
+        basename, anchor = basename.split('#^', 1)
+
+    path = find_article(basename)
+
+    if anchor == '' and '♯' not in path.name:
+        anchor = '#' + slugify(path.name[0:-12] if path.name.endswith(
+            '- Chinese.md') else path.name[0:-3])
 
     lang = 'en'
     if basename.endswith('- Chinese'):
         lang = 'zh'
-
-    path = find_article(basename)
 
     if '§ Blog' in path.parts:
         path = Path(*path.parts[path.parts.index('§ Blog') + 1:])
         section = parse_section(path)
         slug = slugify(parse_basename(path.parent))
 
-        return '[{}]({{{{< relref path="/{}/{}.md" lang="{}" >}}}})'.format(title, section, slug, lang)
+        return '[{}]({{{{< relref path="/{}/{}.md" lang="{}" >}}}}{})'.format(title, section, slug, lang, anchor)
 
     path = Path(*path.parts[path.parts.index('§ Tickler') + 1:])
     section = 'wiki'
     slug = slugify(parse_basename(path.parent))
-
-    anchor = ''
-    if '♯' not in path.name:
-        anchor = '#' + slugify(path.name[0:-12] if path.name.endswith(
-            '- Chinese.md') else path.name[0:-3])
 
     return '[{}]({{{{< relref path="/{}/{}.md" lang="{}" >}}}}{})'.format(title, section, slug, lang, anchor)
 
