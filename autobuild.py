@@ -231,6 +231,11 @@ def worker(job_id):
     print('JOB {} done'.format(job_id))
 
 
+@app.route('/ping')
+def get_ping():
+    return Response('ping', mimetype='text/plain')
+
+
 @app.route('/')
 def get_status():
     return Response(
