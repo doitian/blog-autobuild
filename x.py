@@ -23,7 +23,7 @@ INFLECTOR = EnglishInflector()
 SRC_DIR = Path(os.environ.get('KB_SRC_DIR', Path.home() /
                               "Dropbox" / "Brain" / "publish"))
 CONTENT_DIR = Path(os.environ.get(
-    'KB_CONTENT_DIR', Path.home() / "codebase" / "my" / "iany.me" / "content"))
+    'KB_CONTENT_DIR', Path.home() / "codebase" / "iany.me" / "content"))
 TEST_VECTORS = Path(os.path.realpath(__file__)).parent / "test-vectors"
 
 YYMM_RE = re.compile(r'\d{4} - (.*)')
