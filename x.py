@@ -235,7 +235,7 @@ class StateComment():
             return self
 
     def parse(self, line, io):
-        if line.endswith('%%'):
+        if line.strip().endswith('%%'):
             io.squash_empty_lines()
             return StateNormal()
         else:
