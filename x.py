@@ -228,10 +228,14 @@ class StateMathBlock():
 
 class StateComment():
     def on_start(self, line, io):
-        return self.parse(line, io)
+        if line.strip()[2:].endswith('%%'):
+            io.squash_empty_lines()
+            return StateNormal()
+        else:
+            return self
 
     def parse(self, line, io):
-        if line.strip()[2:].endswith('%%'):
+        if line.endswith('%%'):
             io.squash_empty_lines()
             return StateNormal()
         else:
