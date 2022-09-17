@@ -21,7 +21,7 @@ from pathlib import Path
 INFLECTOR = EnglishInflector()
 
 SRC_DIR = Path(os.environ.get('KB_SRC_DIR', Path.home() /
-                              "Dropbox" / "Brain" / "publish"))
+                              "Dropbox" / "Brain" / "output"))
 CONTENT_DIR = Path(os.environ.get(
     'KB_CONTENT_DIR', Path.home() / "codebase" / "iany.me" / "content"))
 TEST_VECTORS = Path(os.path.realpath(__file__)).parent / "test-vectors"
@@ -32,6 +32,7 @@ EMBED_RE = re.compile(
     r'\[(\w+) - (.*)\]\((.*[^\s\'"])(?:\s+["\'](.*)["\'])?\)')
 CONTENT_BLOCK_RE = re.compile(r'\s*!\[\[(.*)\]\]$')
 ANCHOR_RE = re.compile(r'\^[a-zA-Z0-9]+$')
+CALLOUT_RE = re.compile(r'> \[!([^\]]*)\]([-+]?) (.*)')
 
 IMAGE_EXTS = {
     '.jpg': True,
@@ -41,6 +42,10 @@ IMAGE_EXTS = {
 }
 
 ARTICLES_INDEX = {}
+
+
+def gostr(str):
+    return repr(str).replace('"', '\\"')[1:-1]
 
 
 class MachineIO():
@@ -242,6 +247,33 @@ class StateComment():
             return self
 
 
+CALLOUT_ICONS = {
+    'example': 'list',
+    'code': 'code'
+}
+
+
+class StateCallout():
+    def on_start(self, match, io):
+        self.state = StateNormal()
+
+        kind, fold, title = match.groups()
+        icon = f'fas fa-{CALLOUT_ICONS[kind]}'
+
+        io.outputs.append(
+            f'{{{{< callout type="{kind}" icon="{icon}" title="{gostr(title)}" fold="{fold}" >}}}}\n\n')
+
+        return self
+
+    def parse(self, line, io):
+        if line.startswith('> '):
+            self.state = self.state.parse(line[2:], io)
+            return self
+        else:
+            io.outputs.append('\n{{< /callout >}}\n')
+            return StateNormal().parse(line, io)
+
+
 class StateNormal():
     def parse(self, line, io):
         if line is None:
@@ -274,6 +306,10 @@ class StateNormal():
 
         if line.strip().startswith('%%'):
             return StateComment().on_start(line, io)
+
+        callout_match = CALLOUT_RE.match(line)
+        if callout_match:
+            return StateCallout().on_start(callout_match, io)
 
         cb_match = CONTENT_BLOCK_RE.match(line)
         if cb_match:
