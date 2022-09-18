@@ -128,6 +128,17 @@ class ContentBlock():
             self.gallery_caption = parts[3]
 
 
+class StateIgnoredFencedCodeBlock():
+    def parse(self, line, io):
+        if line is None:
+            fail("Unexpected EOF: open fenced code block")
+
+        if line.strip() == '```':
+            return StateNormal()
+        else:
+            return self
+
+
 class StateFencedCodeBlock():
     def parse(self, line, io):
         if line is None:
@@ -297,6 +308,9 @@ class StateNormal():
             convert_embed(line, embed_match, io)
             return self
 
+        if line.strip().startswith('```dataviewx'):
+            return StateIgnoredFencedCodeBlock()
+
         if line.strip().startswith('```'):
             io.append(line)
             return StateFencedCodeBlock()
@@ -389,6 +403,7 @@ def parse_basename(root):
 WIKILINK = re.compile(r'\[\[(♯ .*?)\]\]')
 RELATIVE_IMAGE = re.compile(
     r'!\[(.*?)\]\(\./([^)]*\.(?:jpe?g|png))(?:\s+"(.*)")?\)')
+BACKLINK = re.compile(r'\(Backlinks:: (.+)\)')
 
 
 def strrepr(str):
@@ -453,6 +468,7 @@ def convert_relative_img(match):
 
 
 def convert_line(line, katex):
+    line = BACKLINK.sub(r'➫ \1', line)
     line = WIKILINK.sub(convert_link, line)
     line = RELATIVE_IMAGE.sub(convert_relative_img, line)
 
