@@ -258,6 +258,18 @@ class StateComment():
             return self
 
 
+class StateMetadata():
+    def on_start(self, line, io):
+        return self
+
+    def parse(self, line, io):
+        if line.strip() == '':
+            io.squash_empty_lines()
+            return StateNormal()
+        else:
+            return self
+
+
 CALLOUT_ICONS = {
     'example': 'list',
     'code': 'code'
@@ -320,6 +332,9 @@ class StateNormal():
 
         if line.strip().startswith('%%'):
             return StateComment().on_start(line, io)
+
+        if line.strip().startswith('**') and '**:: ' in line:
+            return StateMetadata().on_start(line, io)
 
         callout_match = CALLOUT_RE.match(line)
         if callout_match:
