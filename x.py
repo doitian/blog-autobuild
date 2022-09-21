@@ -414,7 +414,7 @@ def parse_basename(root):
     return basename
 
 
-# ia-writer://open?path=/Locations/iCloud/§%20Blog/Posts/Posts%202017/201710%20-%20Lua%20C%20Api%20Userdata/♯%20Lua%20C%20Api%20Userdata%20-%20Chinese.md
+# Obsidian style wikilink
 WIKILINK = re.compile(r'\[\[(♯ .*?)\]\]')
 RELATIVE_IMAGE = re.compile(
     r'!\[(.*?)\]\(\./([^)]*\.(?:jpe?g|png))(?:\s+"(.*)")?\)')
