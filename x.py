@@ -296,6 +296,9 @@ class StateCallout():
         if line.startswith('> '):
             self.state = self.state.parse(line[2:], io)
             return self
+        elif line.rstrip() == '>':
+            self.state = self.state.parse(line[1:], io)
+            return self
         else:
             io.outputs.append('\n{{< /callout >}}\n')
             return StateNormal().parse(line, io)
