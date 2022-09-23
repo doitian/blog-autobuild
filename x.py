@@ -31,7 +31,8 @@ INLINE_MATH = re.compile(r'(^|[^\w$\\])(\$.*?[^\\]\$)(\W|$)')
 EMBED_RE = re.compile(
     r'\[(\w+) - (.*)\]\((.*[^\s\'"])(?:\s+["\'](.*)["\'])?\)')
 CONTENT_BLOCK_RE = re.compile(r'\s*!\[\[(.*)\]\]$')
-ANCHOR_RE = re.compile(r'\^[a-zA-Z0-9]+$')
+ANCHOR_RE = re.compile(r'\^[a-zA-Z0-9][-a-zA-Z0-9]*$')
+INLINE_ANCHOR_RE = re.compile(r'(\s)\^([a-zA-Z0-9][-a-zA-Z0-9]*)$')
 CALLOUT_RE = re.compile(r'> \[!([^\]]*)\]([-+]?) (.*)')
 
 IMAGE_EXTS = {
@@ -182,13 +183,14 @@ class StateContentBlockImage():
             io.append(" >}}")
         else:
             io.append("{{< gallery-card")
-            cb_first = ContentBlock(self.matches[0])
+            blocks = [ContentBlock(m) for m in self.matches]
+            cb_first = blocks[0]
             if cb_first.kg_width != '':
                 io.append(' kg_width=')
                 io.append(cb_first.kg_width)
 
             should_start_new_line = False
-            for cb in (ContentBlock(m) for m in self.matches):
+            for cb in blocks:
                 if should_start_new_line:
                     io.append(' "|"')
                     should_start_new_line = False
@@ -203,7 +205,7 @@ class StateContentBlockImage():
                 io.append(' ')
                 io.append(strrepr(src))
 
-            cb_last = ContentBlock(self.matches[-1])
+            cb_last = blocks[-1]
             if cb_last.gallery_caption != '':
                 io.append(' ')
                 io.append(
@@ -272,7 +274,8 @@ class StateMetadata():
 
 CALLOUT_ICONS = {
     'example': 'list',
-    'code': 'code'
+    'code': 'code',
+    'file': 'file'
 }
 
 
@@ -415,7 +418,7 @@ def parse_basename(root):
 
 
 # Obsidian style wikilink
-WIKILINK = re.compile(r'\[\[(♯ .*?)\]\]')
+WIKILINK = re.compile(r'\[\[([#♯].*?)\]\]')
 RELATIVE_IMAGE = re.compile(
     r'!\[(.*?)\]\(\./([^)]*\.(?:jpe?g|png))(?:\s+"(.*)")?\)')
 BACKLINK = re.compile(r'\(Backlinks:: (.+)\)')
@@ -450,6 +453,23 @@ def convert_link(match):
     anchor = ''
     if '#^' in basename:
         basename, anchor = basename.split('#^', 1)
+        anchor = '#' + anchor
+
+    if '#' in basename:
+        basename, anchor = basename.split('#', 1)
+        anchor = '#' + slugify(anchor)
+
+    if basename == '':
+        # link in current page
+        if title.startswith('#^'):
+            title = title[2:]
+            if title.startswith('ref-'):
+                title = title[4:]
+            return '<sup>[{}]({})</sup>'.format(title, anchor)
+        else:
+            if title.startswith('#'):
+                title = title[1:]
+            return '[{}]({})'.format(title, anchor)
 
     path = find_article(basename)
 
@@ -486,6 +506,7 @@ def convert_line(line, katex):
     line = BACKLINK.sub(r'➫ \1', line)
     line = WIKILINK.sub(convert_link, line)
     line = RELATIVE_IMAGE.sub(convert_relative_img, line)
+    line = INLINE_ANCHOR_RE.sub(r'\1<a name="\2"></a>', line)
 
     if katex:
         line = INLINE_MATH.sub('\g<1>`\g<2>`\g<3>', line)
@@ -557,6 +578,7 @@ def convert_md(src):
         front_matters['title'] = title_line[2:].strip()
 
     if re.match(r'^#[a-zA-Z]', body):
+        tags_splits = body.split('\n', 1)
         tags_splits = body.split('\n', 1)
         if len(tags_splits) > 1:
             tags_line, body = tags_splits
@@ -744,6 +766,3 @@ if __name__ == '__main__':
                         print("test pass: {}".format(file))
 
         exit(0)
-
-    for arg in sys.argv[2:]:
-        print(convert_md(Path(arg)))
