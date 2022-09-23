@@ -275,7 +275,8 @@ class StateMetadata():
 CALLOUT_ICONS = {
     'example': 'list',
     'code': 'code',
-    'file': 'file'
+    'file': 'file',
+    'info': 'circle-info',
 }
 
 
@@ -284,10 +285,10 @@ class StateCallout():
         self.state = StateNormal()
 
         kind, fold, title = match.groups()
-        icon = f'fas fa-{CALLOUT_ICONS[kind]}'
+        icon = CALLOUT_ICONS[kind]
 
         io.outputs.append(
-            f'{{{{< callout type="{kind}" icon="{icon}" title="{gostr(title)}" fold="{fold}" >}}}}\n\n')
+            f'{{{{< callout type="{kind}" icon="fas fa-{icon}" title="{gostr(title)}" fold="{fold}" >}}}}\n\n')
 
         return self
 
