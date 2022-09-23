@@ -581,6 +581,13 @@ def convert_md(src):
     if 'title' not in front_matters:
         front_matters['title'] = title_line[2:].strip()
 
+    if 'aliases' in front_matters:
+        front_matters['obsidian_aliases'] = front_matters['aliases']
+        del front_matters['aliases']
+    if 'hugo_aliases' in front_matters:
+        front_matters['aliases'] = front_matters['hugo_aliases']
+        del front_matters['hugo_aliases']
+
     if re.match(r'^#[a-zA-Z]', body):
         tags_splits = body.split('\n', 1)
         tags_splits = body.split('\n', 1)
