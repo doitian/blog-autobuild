@@ -6,7 +6,6 @@ import os
 import sys
 import re
 import json
-import urllib
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -422,7 +421,7 @@ def parse_basename(root):
 
 
 # Obsidian style wikilink
-WIKILINK = re.compile(r'\[\[([#♯].*?)\]\]')
+WIKILINK = re.compile(r'\[\[([#§].*?)\]\]')
 RELATIVE_IMAGE = re.compile(
     r'!\[(.*?)\]\(\./([^)]*\.(?:jpe?g|png))(?:\s+"(.*)")?\)')
 BACKLINK = re.compile(r'\(Backlinks:: (.+)\)')
@@ -450,6 +449,8 @@ def convert_embed(line, match, io):
 def convert_link(match):
     basename = match.group(1)
     title = basename
+    if title.startswith('§ '):
+        title = '♯ ' + title[2:]
 
     if '|' in basename:
         basename, title = basename.split('|', 1)
@@ -477,7 +478,7 @@ def convert_link(match):
 
     path = find_article(basename)
 
-    if anchor == '' and '♯' not in path.name:
+    if anchor == '' and '§' not in path.name:
         anchor = '#' + slugify(path.name[0:-12] if path.name.endswith(
             '- Chinese.md') else path.name[0:-3])
 
@@ -513,7 +514,7 @@ def convert_line(line, katex):
     line = INLINE_ANCHOR_RE.sub(r'\1<a name="\2"></a>', line)
 
     if katex:
-        line = INLINE_MATH.sub('\g<1>`\g<2>`\g<3>', line)
+        line = INLINE_MATH.sub(r'\1`\2`\3', line)
 
     return line
 
@@ -523,7 +524,7 @@ def resolve_breadcrumbs(path, front_matters):
     if 'breadcrumbAncestors' not in front_matters:
         ancestors = []
         parent = path.parent.parent
-        while (parent / "♯ {}{}".format(parent.name, ext)).exists():
+        while (parent / "§ {}{}".format(parent.name, ext)).exists():
             ancestors.append("../{}/".format(slugify(parent.name)))
             parent = parent.parent
         if len(ancestors) > 0:
@@ -534,7 +535,7 @@ def resolve_breadcrumbs(path, front_matters):
         descendants = list(
             "../{}/".format(slugify(d.name))
             for d in sorted(path.parent.iterdir())
-            if d.is_dir() and (d / "♯ {}{}".format(d.name, ext)).exists()
+            if d.is_dir() and (d / "§ {}{}".format(d.name, ext)).exists()
         )
         if len(descendants) > 0:
             front_matters['breadcrumbDescendants'] = descendants
@@ -646,7 +647,7 @@ def copy_tree(src, dst):
 
 def should_publish(file):
     dir = str(file.parent)
-    return file.exists() and file.name.startswith('♯ ') and ('§ Tickler' in dir or '§ Blog' in dir)
+    return file.exists() and file.name.startswith('§ ') and ('§ Tickler' in dir or '§ Blog' in dir)
 
 
 def publish(root, versions, files, dirs):
