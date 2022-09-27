@@ -553,9 +553,6 @@ def convert_md(src):
             fail("File {} contains nonprintable char at {}: {}({})".format(
                 src, i, repr(c), repr(raw[context_start:context_start + 20])))
 
-    if 'blog.iany.me/' in raw.replace('blog.iany.me/uploads', ''):
-        fail("File {} contains full domain link".format(src))
-
     if raw.startswith('---\n'):
         content = raw.split('---\n', 2)
         if content[0] != '' and len(content) != 3:
@@ -626,7 +623,12 @@ def convert_md(src):
             parts.append('* {{{{< rellink path="{}" >}}}}'.format(d))
         parts.append('')
 
-    return "\n".join(parts)
+
+    converted_body = "\n".join(parts)
+    if 'blog.iany.me/' in converted_body.replace('blog.iany.me/uploads', ''):
+        fail("File {} contains full domain link".format(src))
+
+    return converted_body
 
 
 def save_file(content, dst):
