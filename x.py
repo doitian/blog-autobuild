@@ -31,8 +31,9 @@ EMBED_RE = re.compile(
     r'\[(\w+) - (.*)\]\((.*[^\s\'"])(?:\s+["\'](.*)["\'])?\)')
 CONTENT_BLOCK_RE = re.compile(r'\s*!\[\[(.*)\]\]$')
 ANCHOR_RE = re.compile(r'\^[a-zA-Z0-9][-a-zA-Z0-9]*$')
-INLINE_ANCHOR_RE = re.compile(r'(\s)\^([a-zA-Z0-9][-a-zA-Z0-9]*)$')
+INLINE_ANCHOR_RE = re.compile(r'(?:\s)\^([a-zA-Z0-9][-a-zA-Z0-9]*)$')
 CALLOUT_RE = re.compile(r'> \[!([^\]]*)\]([-+]?) (.*)')
+INDENTATION_RE = re.compile(r'(\s*)')
 
 IMAGE_EXTS = {
     '.jpg': True,
@@ -470,7 +471,7 @@ def convert_link(match):
             title = title[2:]
             if title.startswith('ref-'):
                 title = title[4:]
-            return '<sup>[{}]({})</sup>'.format(title, anchor)
+            return '<sup id="fnxref:{}">[{}](#fnx:{})</sup> '.format(title, title, title)
         else:
             if title.startswith('#'):
                 title = title[1:]
@@ -511,7 +512,20 @@ def convert_line(line, katex):
     line = BACKLINK.sub(r'➫ \1', line)
     line = WIKILINK.sub(convert_link, line)
     line = RELATIVE_IMAGE.sub(convert_relative_img, line)
-    line = INLINE_ANCHOR_RE.sub(r'\1<a name="\2"></a>', line)
+
+    inline_anchor_match = INLINE_ANCHOR_RE.search(line)
+    if inline_anchor_match:
+        refid = inline_anchor_match.group(1)
+        if refid.startswith('ref-'):
+            refid = refid[4:]
+        line = line[:inline_anchor_match.start()] + f' [↩](#fnxref:{refid})'
+        anchor = f'<a name="fnx:{refid}"></a> '
+        _, indentation, stripped_line = INDENTATION_RE.split(line, maxsplit=1)
+        if stripped_line.startswith('- ') or stripped_line.startswith('* -'):
+            line = ''.join([indentation, stripped_line[:2],
+                           anchor, stripped_line[2:].lstrip()])
+        else:
+            line = ''.join([indentation, anchor, stripped_line])
 
     if katex:
         line = INLINE_MATH.sub(r'\1`\2`\3', line)
@@ -622,7 +636,6 @@ def convert_md(src):
         for d in descendants:
             parts.append('* {{{{< rellink path="{}" >}}}}'.format(d))
         parts.append('')
-
 
     converted_body = "\n".join(parts)
     if 'blog.iany.me/' in converted_body.replace('blog.iany.me/uploads', ''):
