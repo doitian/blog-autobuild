@@ -520,7 +520,7 @@ def convert_line(line, katex):
         if refid.startswith('ref-'):
             refid = refid[4:]
         line = line[:inline_anchor_match.start()] + \
-            f'&nbsp;[↩](#fnxref:{refid})'
+            f'&#160;[↩](#fnxref:{refid})'
         anchor = f'<a name="fnx:{refid}"></a> '
         _, indentation, stripped_line = INDENTATION_RE.split(line, maxsplit=1)
         list_prefix_match = LIST_PREFIX_RE.match(stripped_line)
