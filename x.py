@@ -34,6 +34,7 @@ ANCHOR_RE = re.compile(r'\^[a-zA-Z0-9][-a-zA-Z0-9]*$')
 INLINE_ANCHOR_RE = re.compile(r'(?:\s)\^([a-zA-Z0-9][-a-zA-Z0-9]*)$')
 CALLOUT_RE = re.compile(r'> \[!([^\]]*)\]([-+]?) (.*)')
 INDENTATION_RE = re.compile(r'(\s*)')
+LIST_PREFIX_RE = re.compile(r'(?:[0-9]+\.|[-*]) ')
 
 IMAGE_EXTS = {
     '.jpg': True,
@@ -522,9 +523,11 @@ def convert_line(line, katex):
             f'&nbsp;[↩](#fnxref:{refid})'
         anchor = f'<a name="fnx:{refid}"></a> '
         _, indentation, stripped_line = INDENTATION_RE.split(line, maxsplit=1)
-        if stripped_line.startswith('- ') or stripped_line.startswith('* -'):
-            line = ''.join([indentation, stripped_line[:2],
-                           anchor, stripped_line[2:].lstrip()])
+        list_prefix_match = LIST_PREFIX_RE.match(stripped_line)
+        if list_prefix_match:
+            list_prefix = list_prefix_match.group(0)
+            line = ''.join([indentation, list_prefix,
+                           anchor, stripped_line[len(list_prefix):].lstrip()])
         else:
             line = ''.join([indentation, anchor, stripped_line])
 
