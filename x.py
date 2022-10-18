@@ -604,6 +604,11 @@ def convert_md(src):
         front_matters['aliases'] = front_matters['hugo_aliases']
         del front_matters['hugo_aliases']
 
+    if 'banner' in front_matters:
+        banner = front_matters['banner']
+        if banner.startswith('![['):
+            front_matters['banner'] = banner[3:-2]
+
     if re.match(r'^#[a-zA-Z]', body):
         tags_splits = body.split('\n', 1)
         tags_splits = body.split('\n', 1)
