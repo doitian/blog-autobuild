@@ -7,10 +7,10 @@ import hashlib
 import hmac
 import shutil
 import filecmp
+from urllib.request import pathname2url
 from subprocess import check_call, check_output
 from time import time
 from datetime import datetime
-from hashlib import sha1
 from threading import Thread, Lock
 
 import requests
@@ -157,9 +157,9 @@ def _cdn(job):
 
         urls = []
         for path in job['files']:
-            urls.append('http://blog.iany.me' + path)
+            urls.append('http://blog.iany.me' + pathname2url(path))
             if path.endswith('/index.html'):
-                urls.append('http://blog.iany.me' + path[0:-10])
+                urls.append('http://blog.iany.me' + pathname2url(path[0:-10]))
                 if path == '/index.html':
                     urls.append('http://blog.iany.me')
         req.Urls = urls
