@@ -266,6 +266,9 @@ class StateMetadata():
         return self
 
     def parse(self, line, io):
+        if line is None:
+            return
+
         if line.strip() == '':
             io.squash_empty_lines()
             return StateNormal()
