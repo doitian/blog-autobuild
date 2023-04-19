@@ -32,7 +32,7 @@ EMBED_RE = re.compile(
 CONTENT_BLOCK_RE = re.compile(r'\s*!\[\[(.*)\]\]$')
 ANCHOR_RE = re.compile(r'\^[a-zA-Z0-9][-a-zA-Z0-9]*$')
 INLINE_ANCHOR_RE = re.compile(r'(?:\s)\^([a-zA-Z0-9][-a-zA-Z0-9]*)$')
-CALLOUT_RE = re.compile(r'> \[!([^\]]*)\]([-+]?) (.*)')
+CALLOUT_RE = re.compile(r'> \[!([^\]]*)\]([-+]?)(?: (.*))?')
 INDENTATION_RE = re.compile(r'(\s*)')
 LIST_PREFIX_RE = re.compile(r'(?:[0-9]+\.|[-*]) ')
 
@@ -281,6 +281,7 @@ CALLOUT_ICONS = {
     'code': 'code',
     'file': 'file',
     'info': 'circle-info',
+    'hint': 'fire',
 }
 
 
@@ -289,6 +290,8 @@ class StateCallout():
         self.state = StateNormal()
 
         kind, fold, title = match.groups()
+        if title is None:
+            title = kind.capitalize()
         icon = CALLOUT_ICONS[kind]
 
         io.outputs.append(
