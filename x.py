@@ -677,7 +677,7 @@ def convert_md(src):
 
 def save_file(content, dst):
     dst.parent.mkdir(parents=True, exist_ok=True)
-    with open(dst, "w") as fd:
+    with open(dst, "w", newline="\n") as fd:
         fd.write(content)
 
 
@@ -703,12 +703,12 @@ def should_publish(file):
 def publish(root, versions, files, dirs):
     print("publish in {}".format(root))
     if "§ Tickler" in str(root):
-        root_splits = str(root).split("/§ Tickler/", 1)
+        root_splits = root.as_posix().split("/§ Tickler/", 1)
         relative_root = Path(root_splits[1] if len(root_splits) > 1 else "")
         section = "wiki"
         basename = parse_basename(relative_root)
     elif "§ Blog" in str(root):
-        root_splits = str(root).split("/§ Blog/", 1)
+        root_splits = root.as_posix().split("/§ Blog/", 1)
         relative_root = Path(root_splits[1] if len(root_splits) > 1 else "")
         section = parse_section(relative_root)
         basename = parse_basename(relative_root)
