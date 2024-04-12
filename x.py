@@ -10,6 +10,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from yaml import load, dump
+from urllib.parse import quote_plus
 
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -396,6 +397,16 @@ def slugify(name):
     return INFLECTOR.urlize(name.lower()).replace("_", "-")
 
 
+def obsidian_link(name):
+    # https://kb.iany.me/para/lets/f/Final+Cut+Pro/%E2%99%AF+Final+Cut+Pro
+    basename = name[2:]
+    tickler = basename[0].lower()
+    if ord(tickler) < ord("a") or ord(tickler) > ord("z"):
+        tickler = "_"
+
+    return f"https://kb.iany.me/para/lets/{tickler}/{quote_plus(basename)}/{quote_plus(name)}"
+
+
 def line_end(line):
     return line[len(line.rstrip()) :]
 
@@ -416,7 +427,7 @@ def find_article(basename):
             if should_publish(file_path):
                 ARTICLES_INDEX[os.path.splitext(file)[0]] = file_path
 
-    return ARTICLES_INDEX[basename]
+    return ARTICLES_INDEX.get(basename)
 
 
 def parse_basename(root):
@@ -428,7 +439,7 @@ def parse_basename(root):
 
 
 # Obsidian style wikilink
-WIKILINK = re.compile(r"\[\[([#§].*?)\]\]")
+WIKILINK = re.compile(r"\[\[([^ ].*?)\]\]")
 RELATIVE_IMAGE = re.compile(r'!\[(.*?)\]\(\./([^)]*\.(?:jpe?g|png))(?:\s+"(.*)")?\)')
 BACKLINK = re.compile(r"\(Backlinks:: (.+)\)")
 
@@ -488,6 +499,14 @@ def convert_link(match):
             return "[{}]({})".format(title, anchor)
 
     path = find_article(basename)
+    if path is None:
+        if basename.startswith("♯ "):
+            return "[{}]({})".format(title, obsidian_link(basename))
+
+        if basename == title:
+            return "[{}]".format(basename)
+        else:
+            return "[{}][{}]".format(title, basename)
 
     if anchor == "" and "§" not in path.name:
         anchor = "#" + slugify(
