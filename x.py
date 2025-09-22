@@ -39,7 +39,7 @@ CALLOUT_RE = re.compile(r"> \[!([^\]]*)\]([-+]?)(?: (.*))?")
 INDENTATION_RE = re.compile(r"(\s*)")
 LIST_PREFIX_RE = re.compile(r"(?:[0-9]+\.|[-*]) ")
 
-IMAGE_EXTS = {".jpg": True, ".jpeg": True, ".png": True, ".gif": True}
+IMAGE_EXTS = {".jpg": True, ".jpeg": True, ".png": True, ".gif": True, ".svg": True}
 
 ARTICLES_INDEX = {}
 
@@ -440,7 +440,9 @@ def parse_basename(root):
 
 # Obsidian style wikilink
 WIKILINK = re.compile(r"\[\[([^ ].*?)\]\]")
-RELATIVE_IMAGE = re.compile(r'!\[(.*?)\]\(\./([^)]*\.(?:jpe?g|png))(?:\s+"(.*)")?\)')
+RELATIVE_IMAGE = re.compile(
+    r'!\[(.*?)\]\(\./([^)]*\.(?:jpe?g|png|svg))(?:\s+"(.*)")?\)'
+)
 BACKLINK = re.compile(r"\(Backlinks:: (.+)\)")
 
 
@@ -748,17 +750,25 @@ def publish(root, versions, files, dirs):
 
         if v.endswith("- Chinese.md"):
             dst = post_dir / "index.zh.md"
+            default_lang_dst = post_dir / "index.md"
+            if not default_lang_dst.exists():
+                save_file("\n".join(["---", "headless: true", "---"]), default_lang_dst)
+
         else:
             dst = post_dir / "index.md"
 
         save_file(content, dst)
 
     for f in files:
-        if Path(f).suffix in [".jpg", ".jpeg", ".png", ".gif"]:
+        if Path(f).suffix in [".jpg", ".jpeg", ".png", ".gif", ".svg"]:
             copy_file(root / f, post_dir)
     for d in dirs:
         if d in ["assets", "images"]:
             copy_tree(root / d, post_dir)
+        if d == "res":
+            for f in (root / d).iterdir():
+                if Path(f).suffix in [".jpg", ".jpeg", ".png", ".gif", ".svg"]:
+                    copy_file(root / f, post_dir)
 
 
 def is_watch_exec():
