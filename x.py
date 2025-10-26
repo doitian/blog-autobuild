@@ -691,7 +691,8 @@ def convert_md(src):
 
     converted_body = "\n".join(parts)
     if "blog.iany.me/" in converted_body.replace("blog.iany.me/uploads", ""):
-        fail("File {} contains full domain link".format(src))
+        if not front_matters.get("allowFullDomainLink", False):
+            fail("File {} contains full domain link".format(src))
 
     return converted_body
 
