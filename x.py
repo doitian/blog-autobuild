@@ -282,6 +282,7 @@ CALLOUT_ICONS = {
     "info": "circle-info",
     "hint": "fire",
     "attention": "exclamation-triangle",
+    "definition": "book",
 }
 
 
