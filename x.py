@@ -43,6 +43,7 @@ IMAGE_EXTS = {".jpg": True, ".jpeg": True, ".png": True, ".gif": True, ".svg": T
 
 ARTICLES_INDEX = {}
 BACKLINKS_COLLECTION = {}
+ARTICLE_DATES = {}
 
 
 def gostr(str):
@@ -404,10 +405,16 @@ def get_publish_metadata(path):
 class Converter:
     def __init__(self, parent, front_matters, body, current_src_path):
         self.current_src_path = current_src_path
+
+        publish_path = get_publish_metadata(current_src_path)
+        if publish_path:
+            folder_name = current_src_path.parent.name
+            match = YYMM_RE.match(folder_name)
+            ARTICLE_DATES[publish_path] = match.group(1) if match else "0000"
+
         self.context = {
             "src_path": current_src_path,
-            "title": front_matters.get("title", ""),
-            "publish_path": get_publish_metadata(current_src_path),
+            "publish_path": publish_path,
         }
         self.io = MachineIO(
             parent, body.strip().splitlines(keepends=True), [], 0, self.context
@@ -513,14 +520,12 @@ def convert_link(match, context):
         basename, title = basename.split("|", 1)
 
     anchor = ""
-    anchor_title = ""
     if "#^" in basename:
         basename, anchor = basename.split("#^", 1)
         anchor = "#" + anchor
 
     if "#" in basename:
         basename, anchor = basename.split("#", 1)
-        anchor_title = anchor
         anchor = "#" + slugify(anchor)
 
     if basename == "":
@@ -570,25 +575,9 @@ def convert_link(match, context):
         if target_publish_path not in BACKLINKS_COLLECTION:
             BACKLINKS_COLLECTION[target_publish_path] = []
 
-        # Check for duplicates
-        backlink_entry = {
-            "source_path": context["publish_path"],
-            "source_title": context["title"],
-            "target_anchor": anchor,
-            "target_anchor_title": anchor_title,
-        }
-
-        exists = False
-        for entry in BACKLINKS_COLLECTION[target_publish_path]:
-            if (
-                entry["source_path"] == backlink_entry["source_path"]
-                and entry["target_anchor"] == backlink_entry["target_anchor"]
-            ):
-                exists = True
-                break
-
-        if not exists:
-            BACKLINKS_COLLECTION[target_publish_path].append(backlink_entry)
+        source_path = context["publish_path"]
+        if source_path not in BACKLINKS_COLLECTION[target_publish_path]:
+            BACKLINKS_COLLECTION[target_publish_path].append(source_path)
 
     return '[{}]({{{{< relref path="/{}/{}.md" lang="{}" >}}}}{})'.format(
         title, section, slug, lang, anchor
@@ -896,6 +885,22 @@ if __name__ == "__main__":
 
         # --- Collect and save backlinks ---
         print("Collecting and saving backlinks...")
+        for target in BACKLINKS_COLLECTION:
+            sorted_paths = sorted(
+                BACKLINKS_COLLECTION[target],
+                key=lambda p: ARTICLE_DATES.get(p, "0000"),
+                reverse=True,
+            )
+
+            transformed_list = []
+            for p in sorted_paths:
+                if p.endswith(".zh.md"):
+                    transformed_list.append({"path": p[:-6] + ".md", "lang": "zh"})
+                else:
+                    transformed_list.append({"path": p, "lang": "en"})
+
+            BACKLINKS_COLLECTION[target] = transformed_list
+
         backlinks_output_dir = CONTENT_DIR.parent / "data"
         backlinks_output_dir.mkdir(parents=True, exist_ok=True)
         backlinks_output_file = backlinks_output_dir / "backlinks.json"
