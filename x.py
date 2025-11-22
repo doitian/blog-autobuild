@@ -888,7 +888,7 @@ if __name__ == "__main__":
         for target in BACKLINKS_COLLECTION:
             sorted_paths = sorted(
                 BACKLINKS_COLLECTION[target],
-                key=lambda p: ARTICLE_DATES.get(p, "0000"),
+                key=lambda p: (ARTICLE_DATES.get(p, "0000"), p),
                 reverse=True,
             )
 
