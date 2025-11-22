@@ -444,7 +444,6 @@ WIKILINK = re.compile(r"\[\[([^ ].*?)\]\]")
 RELATIVE_IMAGE = re.compile(
     r'!\[(.*?)\]\(\./([^)]*\.(?:jpe?g|png|svg))(?:\s+"(.*)")?\)'
 )
-BACKLINK = re.compile(r"\(Backlinks:: (.+)\)")
 
 
 def strrepr(str):
@@ -520,17 +519,11 @@ def convert_link(match):
     if basename.endswith("- Chinese"):
         lang = "zh"
 
-    if "§ Blog" in path.parts:
-        path = Path(*path.parts[path.parts.index("§ Blog") + 1 :])
-        section = parse_section(path)
-        slug = slugify(parse_basename(path.parent))
+    if "§ Blog" not in path.parts:
+        fail("Invalid link target: {}".format(path))
 
-        return '[{}]({{{{< relref path="/{}/{}.md" lang="{}" >}}}}{})'.format(
-            title, section, slug, lang, anchor
-        )
-
-    path = Path(*path.parts[path.parts.index("§ Tickler") + 1 :])
-    section = "wiki"
+    path = Path(*path.parts[path.parts.index("§ Blog") + 1 :])
+    section = parse_section(path)
     slug = slugify(parse_basename(path.parent))
 
     return '[{}]({{{{< relref path="/{}/{}.md" lang="{}" >}}}}{})'.format(
@@ -546,7 +539,6 @@ def convert_relative_img(match):
 
 
 def convert_line(line, katex):
-    line = BACKLINK.sub(r"➫ \1", line)
     line = WIKILINK.sub(convert_link, line)
     line = RELATIVE_IMAGE.sub(convert_relative_img, line)
 
@@ -716,21 +708,12 @@ def copy_tree(src, dst):
 
 def should_publish(file):
     dir = str(file.parent)
-    return (
-        file.exists()
-        and file.name.startswith("§ ")
-        and ("§ Tickler" in dir or "§ Blog" in dir)
-    )
+    return file.exists() and file.name.startswith("§ ") and "§ Blog" in dir
 
 
 def publish(root, versions, files, dirs):
     print("publish in {}".format(root))
-    if "§ Tickler" in str(root):
-        root_splits = root.as_posix().split("/§ Tickler/", 1)
-        relative_root = Path(root_splits[1] if len(root_splits) > 1 else "")
-        section = "wiki"
-        basename = parse_basename(relative_root)
-    elif "§ Blog" in str(root):
+    if "§ Blog" in str(root):
         root_splits = root.as_posix().split("/§ Blog/", 1)
         relative_root = Path(root_splits[1] if len(root_splits) > 1 else "")
         section = parse_section(relative_root)
