@@ -42,6 +42,7 @@ LIST_PREFIX_RE = re.compile(r"(?:[0-9]+\.|[-*]) ")
 IMAGE_EXTS = {".jpg": True, ".jpeg": True, ".png": True, ".gif": True, ".svg": True}
 
 ARTICLES_INDEX = {}
+BACKLINKS_COLLECTION = {}
 
 
 def gostr(str):
@@ -49,12 +50,13 @@ def gostr(str):
 
 
 class MachineIO:
-    def __init__(self, parent, inputs, outputs, pc):
+    def __init__(self, parent, inputs, outputs, pc, converter_context=None):
         self.parent = parent
         self.inputs = inputs
         self.outputs = outputs
         self.pc = pc
         self.katex = False
+        self.context = converter_context or {}
 
     def forward(self):
         if self.pc < len(self.inputs):
@@ -177,7 +179,7 @@ class StateContentBlockImage:
                 io.append(strrepr(cb.kg_width))
             if cb.caption != "":
                 io.append(" caption=")
-                io.append(strrepr(convert_line(cb.caption, io.katex)))
+                io.append(strrepr(convert_line(cb.caption, io.katex, io.context)))
 
             io.append(" >}}")
         else:
@@ -208,7 +210,10 @@ class StateContentBlockImage:
             if cb_last.gallery_caption != "":
                 io.append(" ")
                 io.append(
-                    strrepr("|" + convert_line(cb_last.gallery_caption, io.katex))
+                    strrepr(
+                        "|"
+                        + convert_line(cb_last.gallery_caption, io.katex, io.context)
+                    )
                 )
 
             io.append(" >}}")
@@ -370,13 +375,43 @@ class StateNormal:
                 io.feed_file(filename)
                 return self
 
-        io.append(convert_line(line, io.katex))
+        io.append(convert_line(line, io.katex, io.context))
         return self
 
 
+def get_publish_metadata(path):
+    if "§ Blog" not in str(path):
+        return None
+
+    try:
+        root_splits = path.parent.as_posix().split("/§ Blog/", 1)
+        relative_root = Path(root_splits[1] if len(root_splits) > 1 else "")
+        section = parse_section(relative_root)
+        basename = parse_basename(relative_root)
+        slug = slugify(basename)
+
+        lang_ext = ""
+        if path.name.endswith("- Chinese.md"):
+            lang_ext = ".zh"
+
+        # Returns relative path like: Section/Slug/index.zh.md
+        # Using forward slashes for consistency in JSON keys
+        return f"{section}/{slug}/index{lang_ext}.md"
+    except Exception:
+        return None
+
+
 class Converter:
-    def __init__(self, parent, front_matters, body):
-        self.io = MachineIO(parent, body.strip().splitlines(keepends=True), [], 0)
+    def __init__(self, parent, front_matters, body, current_src_path):
+        self.current_src_path = current_src_path
+        self.context = {
+            "src_path": current_src_path,
+            "title": front_matters.get("title", ""),
+            "publish_path": get_publish_metadata(current_src_path),
+        }
+        self.io = MachineIO(
+            parent, body.strip().splitlines(keepends=True), [], 0, self.context
+        )
         if "katex" in front_matters and front_matters["katex"]:
             self.io.katex = True
         self.state = StateNormal()
@@ -468,7 +503,7 @@ def convert_embed(line, match, io):
         io.append(line)
 
 
-def convert_link(match):
+def convert_link(match, context):
     basename = match.group(1)
     title = basename
     if title.startswith("§ "):
@@ -478,12 +513,14 @@ def convert_link(match):
         basename, title = basename.split("|", 1)
 
     anchor = ""
+    anchor_title = ""
     if "#^" in basename:
         basename, anchor = basename.split("#^", 1)
         anchor = "#" + anchor
 
     if "#" in basename:
         basename, anchor = basename.split("#", 1)
+        anchor_title = anchor
         anchor = "#" + slugify(anchor)
 
     if basename == "":
@@ -522,9 +559,36 @@ def convert_link(match):
     if "§ Blog" not in path.parts:
         fail("Invalid link target: {}".format(path))
 
-    path = Path(*path.parts[path.parts.index("§ Blog") + 1 :])
-    section = parse_section(path)
-    slug = slugify(parse_basename(path.parent))
+    relative_path = Path(*path.parts[path.parts.index("§ Blog") + 1 :])
+    section = parse_section(relative_path)
+    slug = slugify(parse_basename(relative_path.parent))
+
+    # Record backlink if target is a publishable article
+    target_publish_path = get_publish_metadata(path)
+
+    if target_publish_path and context and context.get("publish_path"):
+        if target_publish_path not in BACKLINKS_COLLECTION:
+            BACKLINKS_COLLECTION[target_publish_path] = []
+
+        # Check for duplicates
+        backlink_entry = {
+            "source_path": context["publish_path"],
+            "source_title": context["title"],
+            "target_anchor": anchor,
+            "target_anchor_title": anchor_title,
+        }
+
+        exists = False
+        for entry in BACKLINKS_COLLECTION[target_publish_path]:
+            if (
+                entry["source_path"] == backlink_entry["source_path"]
+                and entry["target_anchor"] == backlink_entry["target_anchor"]
+            ):
+                exists = True
+                break
+
+        if not exists:
+            BACKLINKS_COLLECTION[target_publish_path].append(backlink_entry)
 
     return '[{}]({{{{< relref path="/{}/{}.md" lang="{}" >}}}}{})'.format(
         title, section, slug, lang, anchor
@@ -538,8 +602,8 @@ def convert_relative_img(match):
     return '{{{{< img src="{}" alt="{}" title="{}" >}}}}'.format(src, alt, title)
 
 
-def convert_line(line, katex):
-    line = WIKILINK.sub(convert_link, line)
+def convert_line(line, katex, context):
+    line = WIKILINK.sub(lambda m: convert_link(m, context), line)
     line = RELATIVE_IMAGE.sub(convert_relative_img, line)
 
     inline_anchor_match = INLINE_ANCHOR_RE.search(line)
@@ -671,7 +735,7 @@ def convert_md(src):
     )
     parts.append("---")
     parts.append("")
-    parts.append(Converter(src.parent, front_matters, body).convert().rstrip())
+    parts.append(Converter(src.parent, front_matters, body, src).convert().rstrip())
     parts.append("")
     if len(descendants) > 0:
         if src.name.endswith(" - Chinese.md"):
@@ -829,6 +893,16 @@ if __name__ == "__main__":
 
             if len(versions) > 0:
                 publish(root, versions, files, dirs)
+
+        # --- Collect and save backlinks ---
+        print("Collecting and saving backlinks...")
+        backlinks_output_dir = CONTENT_DIR.parent / "data"
+        backlinks_output_dir.mkdir(parents=True, exist_ok=True)
+        backlinks_output_file = backlinks_output_dir / "backlinks.json"
+
+        with open(backlinks_output_file, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(BACKLINKS_COLLECTION, f, indent=2, ensure_ascii=False)
+        print(f"Backlinks saved to {backlinks_output_file}")
 
         exit(0)
 
