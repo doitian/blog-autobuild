@@ -42,6 +42,7 @@ LIST_PREFIX_RE = re.compile(r"(?:[0-9]+\.|[-*]) ")
 IMAGE_EXTS = {".jpg": True, ".jpeg": True, ".png": True, ".gif": True, ".svg": True}
 
 ARTICLES_INDEX = {}
+OBSIDIAN_INDEX = {}
 BACKLINKS_COLLECTION = {}
 ARTICLE_DATES = {}
 
@@ -559,10 +560,13 @@ def convert_link(match, context):
         if basename.endswith(" (Highlights)"):
             return "[{}]({})".format(title, obsidian_readwise_link(basename))
 
-        if basename == title:
-            return "[{}]".format(basename)
-        else:
-            return "[{}][{}]".format(title, basename)
+        if basename in OBSIDIAN_INDEX:
+            obsidian_path = "/".join(
+                (quote_plus(part) for part in OBSIDIAN_INDEX[basename].split("/"))
+            )
+            return "[{}]({})".format(title, f"https://kb.iany.me/{obsidian_path}")
+
+        fail(f"Cannot resolve link to {basename}")
 
     if anchor == "" and "§" not in path.name:
         anchor = "#" + slugify(
@@ -664,7 +668,7 @@ def convert_md(src):
     printable_exceptions = "\n\r\t| "
     for i in range(len(raw)):
         c = raw[i]
-        if not c.isprintable() and not c in printable_exceptions:
+        if not c.isprintable() and c not in printable_exceptions:
             context_start = i - 10 if i > 10 else 0
             fail(
                 "File {} contains nonprintable char at {}: {}({})".format(
@@ -678,6 +682,12 @@ def convert_md(src):
             fail("Invalid file content: {}".format(src))
 
         front_matters = load(content[1], Loader=Loader) or {}
+        if "obsidianFiles" in front_matters:
+            for file in front_matters["obsidianFiles"]:
+                if not (SRC_DIR.parent / (file + ".md")).exists():
+                    fail(f"Manual link to file not found: {file}")
+                basename = file.split("/")[-1]
+                OBSIDIAN_INDEX[basename] = file
 
         body = content[2].strip()
     else:
@@ -699,11 +709,11 @@ def convert_md(src):
         front_matters["title"] = title_line[2:].strip()
 
     if "aliases" in front_matters:
-        front_matters["obsidian_aliases"] = front_matters["aliases"]
+        front_matters["obsidianAliases"] = front_matters["aliases"]
         del front_matters["aliases"]
-    if "hugo_aliases" in front_matters:
-        front_matters["aliases"] = front_matters["hugo_aliases"]
-        del front_matters["hugo_aliases"]
+    if "hugoAliases" in front_matters:
+        front_matters["aliases"] = front_matters["hugoAliases"]
+        del front_matters["hugoAliases"]
 
     if "banner" in front_matters:
         banner = front_matters["banner"]
