@@ -905,8 +905,11 @@ if __name__ == "__main__":
         backlinks_output_dir.mkdir(parents=True, exist_ok=True)
         backlinks_output_file = backlinks_output_dir / "backlinks.json"
 
+        # Sort BACKLINKS_COLLECTION by keys
+        sorted_backlinks = dict(sorted(BACKLINKS_COLLECTION.items()))
+
         with open(backlinks_output_file, "w", encoding="utf-8", newline="\n") as f:
-            json.dump(BACKLINKS_COLLECTION, f, indent=2, ensure_ascii=False)
+            json.dump(sorted_backlinks, f, indent=2, ensure_ascii=False)
         print(f"Backlinks saved to {backlinks_output_file}")
 
         exit(0)
