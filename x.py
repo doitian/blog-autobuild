@@ -451,15 +451,6 @@ def obsidian_link(name):
     return f"https://kb.iany.me/para/lets/{tickler}/{quote_plus(basename)}/{quote_plus(name)}"
 
 
-def obsidian_readwise_link(name):
-    for category in ["Articles", "Books", "Podcasts", "Tweets"]:
-        path = SRC_DIR.parent / "robot" / "Readwise Library" / category / (name + ".md")
-        if path.exists():
-            return f"https://kb.iany.me/robot/Readwise+Library/{category}/{quote_plus(name)}"
-
-    fail(f"Fail to find obsidian link to {name}")
-
-
 def line_end(line):
     return line[len(line.rstrip()) :]
 
@@ -556,9 +547,6 @@ def convert_link(match, context):
     if path is None:
         if basename.startswith("♯ "):
             return "[{}]({})".format(title, obsidian_link(basename))
-
-        if basename.endswith(" (Highlights)"):
-            return "[{}]({})".format(title, obsidian_readwise_link(basename))
 
         if basename in OBSIDIAN_INDEX:
             obsidian_path = "/".join(
@@ -684,7 +672,10 @@ def convert_md(src):
         front_matters = load(content[1], Loader=Loader) or {}
         if "obsidianFiles" in front_matters:
             for file in front_matters["obsidianFiles"]:
-                if not (SRC_DIR.parent / (file + ".md")).exists():
+                if (
+                    "CI" not in os.environ
+                    and not (SRC_DIR.parent / (file + ".md")).exists()
+                ):
                     fail(f"Manual link to file not found: {file}")
                 basename = file.split("/")[-1]
                 OBSIDIAN_INDEX[basename] = file
