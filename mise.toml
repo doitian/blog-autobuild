@@ -1,0 +1,9 @@
+[env._.python.venv]
+path = ".venv"
+create = true
+
+[tasks.build]
+run = "python x.py run"
+
+[tasks.test]
+run = "python x.py"
