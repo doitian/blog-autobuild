@@ -183,7 +183,7 @@ class StateContentBlockImage:
                 io.append(" caption=")
                 io.append(strrepr(convert_line(cb.caption, io.katex, io.context)))
 
-            io.append(" >}}")
+            io.append(" >}}\n")
         else:
             io.append("{{< gallery-card")
             blocks = [ContentBlock(m) for m in self.matches]
@@ -218,10 +218,7 @@ class StateContentBlockImage:
                     )
                 )
 
-            io.append(" >}}")
-
-        if line is not None:
-            io.append("\n")
+            io.append(" >}}\n")
 
         return StateNormal().parse(line, io)
 
