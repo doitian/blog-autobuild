@@ -3,6 +3,7 @@ path = ".venv"
 create = true
 
 [tasks.build]
+alias = "default"
 run = "python x.py run"
 
 [tasks.test]
