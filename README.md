@@ -48,6 +48,13 @@ The script relies on environment variables to locate your source files and desti
 
 You can set these in your shell or within a `.env` file if your environment supports it.
 
+### Frontmatter options
+
+- `obsidian-files`: Vault-relative paths without `.md`, used to resolve links to unpublished notes.
+- `allow-full-domain-link`: Allow direct `blog.iany.me` links instead of requiring relative links; defaults to `false`.
+
+The older `obsidianFiles` and `allowFullDomainLink` spellings remain supported. If both spellings of an option are present, their values must agree. The converter preserves the supplied spelling in the output frontmatter.
+
 ## Usage
 
 ### Running Tests
@@ -60,6 +67,9 @@ uv run python x.py
 
 # OR using mise
 mise run test
+
+# Isolated frontmatter tests, including the existing vectors
+uv run python -B -X utf8 -m unittest discover -s tests -v
 ```
 
 ### Building the Site

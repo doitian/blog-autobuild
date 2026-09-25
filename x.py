@@ -646,7 +646,18 @@ def resolve_breadcrumbs(path, front_matters):
             front_matters["breadcrumbDescendants"] = descendants
 
 
+def frontmatter_option(front_matters, key, legacy, default):
+    if (
+        key in front_matters
+        and legacy in front_matters
+        and front_matters[key] != front_matters[legacy]
+    ):
+        fail(f"Conflicting frontmatter options: {key} and {legacy}")
+    return front_matters.get(key, front_matters.get(legacy, default))
+
+
 def convert_md(src):
+    allow_full_domain_link = False
     with open(src) as f:
         raw = f.read()
 
@@ -667,15 +678,20 @@ def convert_md(src):
             fail("Invalid file content: {}".format(src))
 
         front_matters = load(content[1], Loader=Loader) or {}
-        if "obsidianFiles" in front_matters:
-            for file in front_matters["obsidianFiles"]:
-                if (
-                    "CI" not in os.environ
-                    and not (SRC_DIR.parent / (file + ".md")).exists()
-                ):
-                    fail(f"Manual link to file not found: {file}")
-                basename = file.split("/")[-1]
-                OBSIDIAN_INDEX[basename] = file
+        obsidian_files = frontmatter_option(
+            front_matters, "obsidian-files", "obsidianFiles", []
+        )
+        allow_full_domain_link = frontmatter_option(
+            front_matters, "allow-full-domain-link", "allowFullDomainLink", False
+        )
+        for file in obsidian_files:
+            if (
+                "CI" not in os.environ
+                and not (SRC_DIR.parent / (file + ".md")).exists()
+            ):
+                fail(f"Manual link to file not found: {file}")
+            basename = file.split("/")[-1]
+            OBSIDIAN_INDEX[basename] = file
 
         body = content[2].strip()
     else:
@@ -747,7 +763,7 @@ def convert_md(src):
 
     converted_body = "\n".join(parts)
     if "blog.iany.me/" in converted_body.replace("blog.iany.me/uploads", ""):
-        if not front_matters.get("allowFullDomainLink", False):
+        if not allow_full_domain_link:
             fail("File {} contains full domain link".format(src))
 
     return converted_body
