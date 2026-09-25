@@ -731,6 +731,11 @@ def convert_md(src):
         if banner.startswith("![["):
             front_matters["banner"] = banner[3:-2]
 
+    if "feature" in front_matters:
+        feature = front_matters["feature"]
+        if feature.startswith("[[") and feature.endswith("]]"):
+            front_matters["feature"] = feature[2:-2]
+
     if re.match(r"^#[a-zA-Z]", body):
         tags_splits = body.split("\n", 1)
         tags_splits = body.split("\n", 1)
