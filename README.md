@@ -57,7 +57,7 @@ The older `obsidianFiles` and `allowFullDomainLink` spellings remain supported. 
 
 Frontmatter keys are transferred to the output with kebab-case names converted to camelCase (for example, `obsidian-files` becomes `obsidianFiles` and `workflow-tags` becomes `workflowTags`).
 
-A `url` value written as a Markdown HTTP(S) link (for example, `[blog.iany.me](https://blog.iany.me/post/example/)`) is an internal note annotation, equivalent to the old body `**URL**::` line, and is omitted from generated frontmatter. Plain URL/path values remain Hugo permalink overrides. This does not exempt ordinary body links from the full-domain-link check.
+The converter removes the note-only properties `url` and `created`, and removes private classification tags from `tags` and `workflow-tags`: workflow tags `i`, `x`, `now`, `next`, and `later`, plus every `zettel/...` tag. Plain `url` values are note annotations too, not Hugo permalink overrides. This does not exempt ordinary body links from the full-domain-link check.
 
 ## Usage
 

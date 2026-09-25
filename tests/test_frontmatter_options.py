@@ -173,12 +173,32 @@ class FrontmatterOptionsTests(unittest.TestCase):
             self.convert({"url": "[blog.iany.me](https://blog.iany.me/post/example/)"},
                          "https://blog.iany.me/post/still-forbidden/\n")
 
-    def test_hugo_url_overrides_and_unrecognized_values_preserved(self):
+    def test_url_and_created_are_note_annotations(self):
         for value in ["/custom/path/", "https://example.test/custom/", "relative-path/", None,
-                      "[not a link]", "[email](mailto:hello@example.test)"]:
+                      "[not a link]", "[email](mailto:hello@example.test)",
+                      "[blog.iany.me](https://blog.iany.me/post/example/)"]:
             with self.subTest(value=value):
-                result = self.convert({"url": value})
-                self.assertEqual(yaml.safe_load(result.split("---\n", 2)[1])["url"], value)
+                result = self.convert({"url": value, "created": "[[2026-09-26]]"})
+                properties = yaml.safe_load(result.split("---\n", 2)[1])
+                self.assertNotIn("url", properties)
+                self.assertNotIn("created", properties)
+
+    def test_private_classification_tags_are_not_published(self):
+        result = self.convert({
+            "tags": ["programming", "i", "x", "now", "next", "later", "zettel/permanent",
+                      "Zettel/Index", "#gave-up", "kind/app"],
+            "workflow-tags": ["x", "zettel/fleeting", "from/pinboard"],
+            "url": "/custom/path/",
+            "created": "[[2026-09-26]]",
+        })
+        properties = yaml.safe_load(result.split("---\n", 2)[1])
+        self.assertEqual(properties["tags"], ["programming", "#gave-up", "kind/app"])
+        self.assertEqual(properties["workflowTags"], ["from/pinboard"])
+        self.assertNotIn("url", properties)
+        self.assertNotIn("created", properties)
+
+        result = self.convert({"tags": ["x", "zettel/permanent"]})
+        self.assertNotIn("tags", yaml.safe_load(result.split("---\n", 2)[1]))
 
     def test_isolated_cli_uses_dash_options(self):
         target = self.target()

@@ -656,6 +656,35 @@ def frontmatter_option(front_matters, key, legacy, default):
     return front_matters.get(key, front_matters.get(legacy, default))
 
 
+PRIVATE_STATUS_TAGS = {"i", "x", "now", "next", "later"}
+
+
+def private_classification_tag(value):
+    if not isinstance(value, str):
+        return False
+    token = value.strip().removeprefix("#").lower()
+    return token in PRIVATE_STATUS_TAGS or token == "zettel" or token.startswith("zettel/")
+
+
+def scrub_private_metadata(front_matters):
+    """Remove note-only classifications and annotations before Hugo sees them."""
+    for key in ("url", "created"):
+        front_matters.pop(key, None)
+    for key in list(front_matters):
+        if key.lower() not in {"tags", "workflow-tags", "workflow tags"}:
+            continue
+        values = front_matters[key]
+        if isinstance(values, str):
+            values = values.split()
+        if not isinstance(values, list):
+            continue
+        kept = [item for item in values if not private_classification_tag(item)]
+        if kept:
+            front_matters[key] = kept
+        else:
+            del front_matters[key]
+
+
 def camel_case_key(name):
     if not isinstance(name, str) or "-" not in name:
         return name
@@ -726,12 +755,7 @@ def convert_md(src):
         front_matters["aliases"] = front_matters["hugoAliases"]
         del front_matters["hugoAliases"]
 
-    note_url = front_matters.get("url")
-    if isinstance(note_url, str) and re.fullmatch(
-        r"\[[^\]\r\n]+\]\(https?://[^\s]+\)", note_url
-    ):
-        # Markdown note links are annotations, not Hugo permalink overrides.
-        del front_matters["url"]
+    scrub_private_metadata(front_matters)
 
     if "banner" in front_matters:
         banner = front_matters["banner"]
