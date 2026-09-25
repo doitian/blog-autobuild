@@ -719,6 +719,13 @@ def convert_md(src):
         front_matters["aliases"] = front_matters["hugoAliases"]
         del front_matters["hugoAliases"]
 
+    note_url = front_matters.get("url")
+    if isinstance(note_url, str) and re.fullmatch(
+        r"\[[^\]\r\n]+\]\(https?://[^\s]+\)", note_url
+    ):
+        # Markdown note links are annotations, not Hugo permalink overrides.
+        del front_matters["url"]
+
     if "banner" in front_matters:
         banner = front_matters["banner"]
         if banner.startswith("![["):

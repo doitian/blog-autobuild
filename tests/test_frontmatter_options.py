@@ -151,10 +151,31 @@ class FrontmatterOptionsTests(unittest.TestCase):
         self.assertEqual(actual, {**properties, "title": "Example"})
         self.assertEqual(actual["tags"], ["programming", "python"])
 
+    def test_markdown_note_url_matches_legacy_annotation(self):
+        for value in ["[blog.iany.me](https://blog.iany.me/post/example/)",
+                      "[Source 页面](https://example.test/a_(b)?x=1#anchor)",
+                      "[HTTP source](http://example.test/path)"]:
+            with self.subTest(value=value):
+                before = self.convert(None, "**URL**:: " + value + "\n\nText.\n")
+                after = self.convert({"url": value})
+                self.assertEqual(before, after)
+                self.assertNotIn("url", yaml.safe_load(after.split("---\n", 2)[1]))
+        with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
+            self.convert({"url": "[blog.iany.me](https://blog.iany.me/post/example/)"},
+                         "https://blog.iany.me/post/still-forbidden/\n")
+
+    def test_hugo_url_overrides_and_unrecognized_values_preserved(self):
+        for value in ["/custom/path/", "https://example.test/custom/", "relative-path/", None,
+                      "[not a link]", "[email](mailto:hello@example.test)"]:
+            with self.subTest(value=value):
+                result = self.convert({"url": value})
+                self.assertEqual(yaml.safe_load(result.split("---\n", 2)[1])["url"], value)
+
     def test_isolated_cli_uses_dash_options(self):
         target = self.target()
         self.note.write_text(
             "---\nobsidian-files:\n  - \"" + target + "\"\nallow-full-domain-link: true\n"
+            'url: "[blog.iany.me](https://blog.iany.me/post/example/)"\n'
             "tags: [python]\n---\n# Example\n\n[[目标 Note]]\n\nhttps://blog.iany.me/post/example/\n",
             encoding="utf-8", newline="\n",
         )
@@ -167,6 +188,7 @@ class FrontmatterOptionsTests(unittest.TestCase):
         generated = self.destination / "post/example/index.md"
         self.assertIn("https://kb.iany.me/dock/", generated.read_text(encoding="utf-8"))
         self.assertIn("https://blog.iany.me/post/example/", generated.read_text(encoding="utf-8"))
+        self.assertNotIn("url", yaml.safe_load(generated.read_text(encoding="utf-8").split("---\n", 2)[1]))
         self.assertEqual(before, (self.note.read_bytes(), self.note.stat().st_mtime_ns))
         self.assertTrue((self.destination.parent / "data/backlinks.json").exists())
 

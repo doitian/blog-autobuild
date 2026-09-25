@@ -55,6 +55,8 @@ You can set these in your shell or within a `.env` file if your environment supp
 
 The older `obsidianFiles` and `allowFullDomainLink` spellings remain supported. If both spellings of an option are present, their values must agree. The converter preserves the supplied spelling in the output frontmatter.
 
+A `url` value written as a Markdown HTTP(S) link (for example, `[blog.iany.me](https://blog.iany.me/post/example/)`) is an internal note annotation, equivalent to the old body `**URL**::` line, and is omitted from generated frontmatter. Plain URL/path values remain Hugo permalink overrides. This does not exempt ordinary body links from the full-domain-link check.
+
 ## Usage
 
 ### Running Tests
