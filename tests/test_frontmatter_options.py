@@ -66,7 +66,7 @@ class FrontmatterOptionsTests(unittest.TestCase):
             "§ Blog/Posts/2001 - Lua C Api Userdata/§ Lua C Api Userdata - Chinese.md"
         )
         vectors = sorted((REPO / "test-vectors").glob("*.in.md"))
-        self.assertEqual(len(vectors), 11)
+        self.assertEqual(len(vectors), 12)
         for source in vectors:
             with self.subTest(vector=source.name):
                 expected = source.with_name(source.name.replace(".in.md", ".out.md"))
@@ -80,11 +80,10 @@ class FrontmatterOptionsTests(unittest.TestCase):
                 converter.OBSIDIAN_INDEX.clear()
                 rendered = self.convert({key: [target]}, "[[目标 Note]]\n")
                 properties = yaml.safe_load(rendered.split("---\n", 2)[1])
-                self.assertEqual(properties[key], [target])
+                self.assertEqual(properties["obsidianFiles"], [target])
+                self.assertNotIn("obsidian-files", properties)
                 self.assertEqual(converter.OBSIDIAN_INDEX, {"目标 Note": target})
                 self.assertIn("https://kb.iany.me/dock/%E7%9B%AE%E6%A0%87+Note", rendered)
-                other = "obsidianFiles" if key == "obsidian-files" else "obsidian-files"
-                self.assertNotIn(other, properties)
 
     def test_equal_aliases_are_accepted_without_reordering(self):
         target = self.target()
@@ -146,9 +145,19 @@ class FrontmatterOptionsTests(unittest.TestCase):
             "full-title": "Unicode 标题",
             "description": "Prose remains unchanged.",
         }
+        expected = {
+            "tags": ["programming", "python"],
+            "workflowTags": ["private-workflow"],
+            "status": "now",
+            "zettel": "permanent",
+            "kind": ["paralet", "app"],
+            "fullTitle": "Unicode 标题",
+            "description": "Prose remains unchanged.",
+            "title": "Example",
+        }
         result = self.convert(properties)
         actual = yaml.safe_load(result.split("---\n", 2)[1])
-        self.assertEqual(actual, {**properties, "title": "Example"})
+        self.assertEqual(actual, expected)
         self.assertEqual(actual["tags"], ["programming", "python"])
 
     def test_markdown_note_url_matches_legacy_annotation(self):

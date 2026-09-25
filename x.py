@@ -656,6 +656,13 @@ def frontmatter_option(front_matters, key, legacy, default):
     return front_matters.get(key, front_matters.get(legacy, default))
 
 
+def camel_case_key(name):
+    if not isinstance(name, str) or "-" not in name:
+        return name
+    head, *tail = name.split("-")
+    return head + "".join(part[:1].upper() + part[1:] for part in tail)
+
+
 def convert_md(src):
     allow_full_domain_link = False
     with open(src) as f:
@@ -755,6 +762,10 @@ def convert_md(src):
 
     if "%%TOC%%" in body:
         front_matters["toc"] = True
+
+    front_matters = {
+        camel_case_key(key): value for key, value in front_matters.items()
+    }
 
     parts = ["---"]
     parts.append(

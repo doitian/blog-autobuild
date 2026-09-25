@@ -53,7 +53,9 @@ You can set these in your shell or within a `.env` file if your environment supp
 - `obsidian-files`: Vault-relative paths without `.md`, used to resolve links to unpublished notes.
 - `allow-full-domain-link`: Allow direct `blog.iany.me` links instead of requiring relative links; defaults to `false`.
 
-The older `obsidianFiles` and `allowFullDomainLink` spellings remain supported. If both spellings of an option are present, their values must agree. The converter preserves the supplied spelling in the output frontmatter.
+The older `obsidianFiles` and `allowFullDomainLink` spellings remain supported. If both spellings of an option are present, their values must agree.
+
+Frontmatter keys are transferred to the output with kebab-case names converted to camelCase (for example, `obsidian-files` becomes `obsidianFiles` and `workflow-tags` becomes `workflowTags`).
 
 A `url` value written as a Markdown HTTP(S) link (for example, `[blog.iany.me](https://blog.iany.me/post/example/)`) is an internal note annotation, equivalent to the old body `**URL**::` line, and is omitted from generated frontmatter. Plain URL/path values remain Hugo permalink overrides. This does not exempt ordinary body links from the full-domain-link check.
 
