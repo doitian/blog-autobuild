@@ -663,9 +663,15 @@ def private_classification_tag(value):
     if not isinstance(value, str):
         return False
     token = value.strip().removeprefix("#").lower()
-    return (token in PRIVATE_STATUS_TAGS or token == "zettel" or token.startswith("zettel/")
-            or token == "kind" or token.startswith("kind/")
-            or token == "from" or token.startswith("from/"))
+    return (
+        token in PRIVATE_STATUS_TAGS
+        or token == "zettel"
+        or token.startswith("zettel/")
+        or token == "kind"
+        or token.startswith("kind/")
+        or token == "from"
+        or token.startswith("from/")
+    )
 
 
 def scrub_private_metadata(front_matters):
@@ -761,8 +767,8 @@ def convert_md(src):
 
     if "banner" in front_matters:
         banner = front_matters["banner"]
-        if banner.startswith("![["):
-            front_matters["banner"] = banner[3:-2]
+        if banner.startswith("[[") and banner.endswith("]]"):
+            front_matters["banner"] = banner[2:-2]
 
     if "feature" in front_matters:
         feature = front_matters["feature"]
@@ -789,9 +795,7 @@ def convert_md(src):
     if "%%TOC%%" in body:
         front_matters["toc"] = True
 
-    front_matters = {
-        camel_case_key(key): value for key, value in front_matters.items()
-    }
+    front_matters = {camel_case_key(key): value for key, value in front_matters.items()}
 
     parts = ["---"]
     parts.append(
