@@ -185,14 +185,14 @@ class FrontmatterOptionsTests(unittest.TestCase):
 
     def test_private_classification_tags_are_not_published(self):
         result = self.convert({
-            "tags": ["programming", "i", "x", "now", "next", "later", "zettel/permanent",
-                      "Zettel/Index", "#gave-up", "kind/app"],
+            "tags": ["programming", "i", "x", "now", "later", "zettel/permanent",
+                      "Zettel/Index", "#gave-up", "kind/app", "next"],
             "workflow-tags": ["x", "zettel/fleeting", "from/pinboard"],
             "url": "/custom/path/",
             "created": "[[2026-09-26]]",
         })
         properties = yaml.safe_load(result.split("---\n", 2)[1])
-        self.assertEqual(properties["tags"], ["programming", "#gave-up", "kind/app"])
+        self.assertEqual(properties["tags"], ["programming", "#gave-up", "kind/app", "next"])
         self.assertEqual(properties["workflowTags"], ["from/pinboard"])
         self.assertNotIn("url", properties)
         self.assertNotIn("created", properties)

@@ -656,7 +656,7 @@ def frontmatter_option(front_matters, key, legacy, default):
     return front_matters.get(key, front_matters.get(legacy, default))
 
 
-PRIVATE_STATUS_TAGS = {"i", "x", "now", "next", "later"}
+PRIVATE_STATUS_TAGS = {"i", "x", "now", "later"}
 
 
 def private_classification_tag(value):

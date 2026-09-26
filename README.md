@@ -57,7 +57,7 @@ The older `obsidianFiles` and `allowFullDomainLink` spellings remain supported. 
 
 Frontmatter keys are transferred to the output with kebab-case names converted to camelCase (for example, `obsidian-files` becomes `obsidianFiles` and `workflow-tags` becomes `workflowTags`).
 
-The converter removes the note-only properties `url` and `created`, and removes private classification tags from `tags` and `workflow-tags`: workflow tags `i`, `x`, `now`, `next`, and `later`, plus every `zettel/...` tag. Plain `url` values are note annotations too, not Hugo permalink overrides. This does not exempt ordinary body links from the full-domain-link check.
+The converter removes the note-only properties `url` and `created`, and removes private classification tags from `tags` and `workflow-tags`: workflow tags `i`, `x`, `now`, and `later`, plus every `zettel/...` tag. Plain `url` values are note annotations too, not Hugo permalink overrides. This does not exempt ordinary body links from the full-domain-link check.
 
 ## Usage
 
