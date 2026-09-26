@@ -663,7 +663,9 @@ def private_classification_tag(value):
     if not isinstance(value, str):
         return False
     token = value.strip().removeprefix("#").lower()
-    return token in PRIVATE_STATUS_TAGS or token == "zettel" or token.startswith("zettel/")
+    return (token in PRIVATE_STATUS_TAGS or token == "zettel" or token.startswith("zettel/")
+            or token == "kind" or token.startswith("kind/")
+            or token == "from" or token.startswith("from/"))
 
 
 def scrub_private_metadata(front_matters):

@@ -192,8 +192,8 @@ class FrontmatterOptionsTests(unittest.TestCase):
             "created": "[[2026-09-26]]",
         })
         properties = yaml.safe_load(result.split("---\n", 2)[1])
-        self.assertEqual(properties["tags"], ["programming", "#gave-up", "kind/app", "next"])
-        self.assertEqual(properties["workflowTags"], ["from/pinboard"])
+        self.assertEqual(properties["tags"], ["programming", "#gave-up", "next"])
+        self.assertNotIn("workflowTags", properties)
         self.assertNotIn("url", properties)
         self.assertNotIn("created", properties)
 
